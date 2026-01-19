@@ -1292,19 +1292,26 @@ input, textarea {
   border-radius: 10px;
   background: #074457;
   border: 2px solid #538085;
+  overflow: visible;
 }
 
 .customer-dropdown {
   display: none;
   flex-direction: column;
   gap: var(--space-xs);
-  margin-top: var(--space-xs);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
   padding: var(--space-sm);
   border: var(--border);
   border-radius: 10px;
   background: var(--bg-black);
-  max-height: 280px;
+  max-height: 320px;
   overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 .customer-dropdown.active {
