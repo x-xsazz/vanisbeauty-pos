@@ -55,12 +55,12 @@
   --font-mono: 'Cooper Planck', 'Consolas', monospace;
 
   /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 6px;
-  --space-md: 12px;
-  --space-lg: 18px;
-  --space-xl: 24px;
-  --space-2xl: 36px;
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
 
   /* Touch targets - Windows DPI scaling handles physical size automatically */
   --touch-min: 48px;
@@ -348,13 +348,13 @@ input, textarea {
 }
 
 .qty-btn {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   border: 2px solid #fbf2c4;
   background: transparent;
@@ -388,12 +388,12 @@ input, textarea {
 }
 
 .bill-item-remove {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   border: 2px solid #c7522a;
   background: transparent;
@@ -424,8 +424,7 @@ input, textarea {
 }
 
 .customer-info {
-  min-height: 0px;
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-md);
   overflow: visible;
 }
 
@@ -433,12 +432,12 @@ input, textarea {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-md);
+  padding: var(--space-lg);
   background: var(--bg-black);
   border: 2px solid #538085;
   border-radius: 8px;
-  margin-bottom: var(--space-xs);
-  min-height: 70px;
+  margin-bottom: var(--space-sm);
+  min-height: 80px;
 }
 
 .customer-avatar {
@@ -595,8 +594,8 @@ input, textarea {
 }
 
 .btn-icon {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   padding: 0;
   font-size: 20px;
   background: transparent;
@@ -1788,11 +1787,11 @@ input, textarea {
 /* POS Container - 3 columns - Optimized for Surface Pro 7 (1368x912 @ 200% scale) */
 .pos-container {
   display: grid;
-  grid-template-columns: 240px 1fr 440px;
+  grid-template-columns: 280px 1fr 380px;
   height: 100%;
   width: 100%;
   background: var(--bg-black);
-  gap: var(--space-sm);
+  gap: var(--space-md);
   padding: 0;
   border: none;
   border-radius: 0;
@@ -1863,7 +1862,7 @@ input, textarea {
 
 .category-btn-vertical {
   width: 100%;
-  padding: var(--space-lg);
+  padding: var(--space-xl);
   font-family: var(--font-mono);
   font-size: 18px;
   font-weight: 700;
@@ -1875,7 +1874,7 @@ input, textarea {
   color: var(--cat-text-color, var(--bg-black));
   cursor: pointer;
   transition: all var(--transition-fast);
-  min-height: 86px;
+  min-height: 96px;
 }
 
 .category-btn-vertical:active,
@@ -1900,11 +1899,11 @@ input, textarea {
 .staff-pictures-row {
   background: var(--bg-dark);
   border-bottom: var(--border);
-  padding: var(--space-lg);
+  padding: var(--space-md);
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  min-height: 170px;
+  min-height: 150px;
   overflow: visible;
 }
 
@@ -1932,7 +1931,7 @@ input, textarea {
   cursor: pointer;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
   animation: cardIn var(--transition-slow) both;
-  min-height: 110px;
+  min-height: 100px;
 }
 
 .staff-picture-box.empty {
@@ -2049,8 +2048,8 @@ input, textarea {
   background: var(--bg-dark);
   display: flex;
   flex-direction: column;
-  padding: var(--space-md);
-  gap: 2.5px;
+  padding: var(--space-lg);
+  gap: var(--space-md);
   overflow-y: auto;
 }
 
@@ -2102,8 +2101,8 @@ input, textarea {
 .checkout-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-sm);
+  gap: var(--space-md);
+  padding: var(--space-lg);
   border: 2px solid #538085;
   border-radius: 10px;
   background: #074457;
@@ -2134,20 +2133,20 @@ input, textarea {
   background: #063840;
   border: 2px solid #538085;
   border-radius: 8px;
-  padding: var(--space-sm);
+  padding: var(--space-md);
 }
 
 /* Compact bill rows inside checkout list */
 .checkout-items-list .bill-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
   align-items: center;
   padding: var(--space-md);
   background: #b8cdab;
   border: 2px solid #538085;
   border-radius: 8px;
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-md);
   animation: billIn var(--transition-fast) both;
 }
 
@@ -2174,9 +2173,9 @@ input, textarea {
 }
 
 .checkout-items-list .qty-btn {
-  width: 28px;
-  height: 28px;
-  font-size: 14px;
+  width: 48px;
+  height: 48px;
+  font-size: 16px;
   border-color: #0a2d2e;
   color: #0a2d2e;
 }
@@ -2201,9 +2200,9 @@ input, textarea {
 }
 
 .checkout-items-list .bill-item-remove {
-  width: 28px;
-  height: 28px;
-  font-size: 16px;
+  width: 48px;
+  height: 48px;
+  font-size: 18px;
   border-color: #c7522a;
   color: #c7522a;
 }
@@ -2282,8 +2281,8 @@ input, textarea {
 
 .payment-card {
   width: 100%;
-  min-height: 110px;
-  padding: var(--space-lg);
+  min-height: 120px;
+  padding: var(--space-xl);
   font-family: var(--font-mono);
   font-size: 18px;
   font-weight: 700;
@@ -2347,4 +2346,39 @@ input, textarea {
 .btn-admin-bottom:active {
   background: #538085;
   color: #fbf2c4;
+}
+
+/* ============================================
+   SURFACE PRO 7 OPTIMIZATION
+   Effective resolution: 1368x912 @ 200% DPI
+   ============================================ */
+
+@media (width: 1368px) and (height: 912px) {
+  .pos-container {
+    grid-template-columns: 280px 1fr 380px;
+    gap: var(--space-md);
+  }
+
+  .items-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .service-btn {
+    min-height: 140px;
+    aspect-ratio: 1 / 1;
+  }
+
+  .payment-card {
+    min-height: 100px;
+  }
+}
+
+@media (max-width: 1400px) and (min-width: 1200px) {
+  .pos-container {
+    grid-template-columns: 280px 1fr 380px;
+  }
+
+  .items-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
