@@ -32,16 +32,19 @@ try {
 
     # Delete source code archives
     foreach ($asset in $assets) {
-        if ($asset.name -match "^(Source code\.zip|Source code\.tar\.gz)$") {
-            Write-Host "Deleting: $($asset.name) (ID: $($asset.id))"
+        $assetName = $asset.name
+        if (($assetName -eq "Source code.zip") -or ($assetName -eq "Source code.tar.gz")) {
+            Write-Host "Deleting: $assetName (ID: $($asset.id))"
             Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases/assets/$($asset.id)" -Method Delete -Headers $headers
-            Write-Host "  ✓ Deleted successfully"
+            Write-Host "  Deleted successfully"
         }
     }
 
-    Write-Host "`nCleanup complete!"
+    Write-Host ""
+    Write-Host "Cleanup complete!"
 
 } catch {
-    Write-Host "Error: $_"
+    $errorMessage = $_.Exception.Message
+    Write-Host "Error: $errorMessage"
     exit 1
 }
