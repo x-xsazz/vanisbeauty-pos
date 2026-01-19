@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # VanisBeauty POS
 
 A local-only Point of Sale system designed for beauty salons and parlors.
