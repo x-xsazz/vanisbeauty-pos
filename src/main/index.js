@@ -21,6 +21,7 @@ function createWindow() {
     autoHideMenuBar: true,
     frame: isDev,
     resizable: isDev,
+    icon: path.join(__dirname, '../../assets/icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
@@ -77,6 +78,7 @@ function showUpdateDialog(updateInfo) {
     transparent: false,
     modal: true,
     parent: mainWindow,
+    icon: path.join(__dirname, '../../assets/icon.ico'),
     backgroundColor: '#0a2d2e',
     webPreferences: {
       nodeIntegration: true,
