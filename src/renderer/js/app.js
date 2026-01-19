@@ -211,12 +211,46 @@
       });
     }
 
-    // Logo click to open admin
+    // Logo long-press to open admin
     const logoSection = document.querySelector('.logo-section');
     if (logoSection) {
-      logoSection.addEventListener('click', () => {
-        window.api.modals.openPinKeypad({ type: 'admin' });
-      });
+      let longPressTimer = null;
+      let longPressTriggered = false;
+      const supportsPointer = typeof window.PointerEvent !== 'undefined';
+
+      const clearLongPress = () => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      };
+
+      const startLongPress = () => {
+        longPressTriggered = false;
+        clearLongPress();
+        longPressTimer = setTimeout(() => {
+          longPressTriggered = true;
+          window.api.modals.openPinKeypad({ type: 'admin' });
+        }, 800);
+      };
+
+      const endLongPress = () => {
+        clearLongPress();
+        longPressTriggered = false;
+      };
+
+      if (supportsPointer) {
+        logoSection.addEventListener('pointerdown', startLongPress);
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt => {
+          logoSection.addEventListener(evt, endLongPress);
+        });
+      } else {
+        logoSection.addEventListener('mousedown', startLongPress);
+        logoSection.addEventListener('touchstart', startLongPress, { passive: true });
+        ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(evt => {
+          logoSection.addEventListener(evt, endLongPress);
+        });
+      }
     }
 
     // Modal window event listeners
@@ -407,6 +441,16 @@
     }
 
     DOM.staffChips.innerHTML = staffBoxes.join('');
+
+    // Update selected staff display
+    const staffSelectedDisplay = document.getElementById('staff-selected-display');
+    if (staffSelectedDisplay) {
+      if (selectedStaff) {
+        staffSelectedDisplay.classList.remove('hidden');
+      } else {
+        staffSelectedDisplay.classList.add('hidden');
+      }
+    }
 
     if (DOM.staffSelectedName) {
       DOM.staffSelectedName.textContent = selectedStaff ? selectedStaff.name : 'None';

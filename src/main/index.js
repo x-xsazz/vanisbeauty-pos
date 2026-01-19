@@ -28,7 +28,7 @@ function createWindow() {
       preload: path.join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      devTools: isDev,
+      devTools: false,
       sandbox: false
     },
     backgroundColor: '#1a1a2e',
@@ -39,9 +39,6 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    if (isDev) {
-      mainWindow.webContents.openDevTools();
-    }
   });
 
   mainWindow.on('closed', () => {
@@ -49,11 +46,22 @@ function createWindow() {
   });
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
+    // Block DevTools shortcuts ALWAYS
+    if (input.key === 'F12') {
+      event.preventDefault();
+    }
+    if (input.control && input.shift && input.key === 'I') {
+      event.preventDefault();
+    }
+    if (input.control && input.shift && input.key === 'J') {
+      event.preventDefault();
+    }
+    if (input.control && input.shift && input.key === 'C') {
+      event.preventDefault();
+    }
+    
     if (!isDev) {
       if (input.key === 'F11' || input.key === 'Escape') {
-        event.preventDefault();
-      }
-      if (input.control && input.shift && input.key === 'I') {
         event.preventDefault();
       }
       if (input.control && input.key === 'r') {
@@ -85,7 +93,8 @@ function showUpdateDialog(updateInfo) {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      sandbox: false
+      sandbox: false,
+      devTools: false
     }
   });
 
@@ -137,7 +146,8 @@ function showCustomerLookup() {
       preload: path.join(__dirname, '../preload/index.js'),
       nodeIntegration: true,
       contextIsolation: false,
-      sandbox: false
+      sandbox: false,
+      devTools: false
     }
   });
 
@@ -156,7 +166,7 @@ function showPinKeypad(config = {}) {
 
   pinKeypadWindow = new BrowserWindow({
     width: 420,
-    height: 480,
+    height: 520,
     resizable: false,
     frame: false,
     modal: true,
@@ -167,7 +177,8 @@ function showPinKeypad(config = {}) {
       preload: path.join(__dirname, '../preload/index.js'),
       nodeIntegration: true,
       contextIsolation: false,
-      sandbox: false
+      sandbox: false,
+      devTools: false
     }
   });
 
@@ -175,7 +186,6 @@ function showPinKeypad(config = {}) {
 
   pinKeypadWindow.once('ready-to-show', () => {
     pinKeypadWindow.show();
-    pinKeypadWindow.webContents.openDevTools(); // Open DevTools to see console
     pinKeypadWindow.webContents.send('pin-config', config);
   });
 
