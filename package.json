@@ -1,6 +1,6 @@
 {
   "name": "vanisbeauty-pos",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Local-only POS system for beauty parlor",
   "main": "src/main/index.js",
   "scripts": {
