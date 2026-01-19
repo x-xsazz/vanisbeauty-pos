@@ -1,6 +1,11 @@
 /* ============================================
    VanisBeauty POS - Brutalist Theme
    Raw, bold, high-contrast, fast
+
+   Optimized for: Microsoft Surface Pro 7
+   - Screen: 12.3" @ 2736x1824 (3:2 aspect ratio)
+   - Scaling: 200% (recommended)
+   - Effective resolution: 1368x912 pixels
    ============================================ */
 
 @font-face {
@@ -57,8 +62,8 @@
   --space-xl: 24px;
   --space-2xl: 36px;
 
-  /* Touch targets */
-  --touch-min: 42px;
+  /* Touch targets - Windows DPI scaling handles physical size automatically */
+  --touch-min: 48px;
 
   /* Transitions - snappy */
   --transition-fast: 80ms ease-out;
@@ -1775,10 +1780,10 @@ input, textarea {
    DIAGRAM LAYOUT - 3 COLUMN (LEFT | CENTER | RIGHT)
    ============================================ */
 
-/* POS Container - 3 columns */
+/* POS Container - 3 columns - Optimized for Surface Pro 7 (1368x912 @ 200% scale) */
 .pos-container {
   display: grid;
-  grid-template-columns: 240px 1fr 460px;
+  grid-template-columns: 240px 1fr 440px;
   height: 100%;
   width: 100%;
   background: var(--bg-black);

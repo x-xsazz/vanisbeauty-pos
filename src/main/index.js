@@ -12,10 +12,10 @@ let updateDialogWindow = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 1024,
-    minHeight: 768,
+    width: 1368,
+    height: 912,
+    minWidth: 1368,
+    minHeight: 912,
     fullscreen: !isDev,
     kiosk: !isDev,
     autoHideMenuBar: true,
