@@ -7,7 +7,6 @@
     "start": "electron .",
     "dev": "set ELECTRON_DEV=true&& electron .",
     "build": "electron-builder --win --x64",
-    "build:portable": "electron-builder --win portable",
     "publish": "electron-builder --win --x64 --publish always"
   },
   "repository": {
@@ -26,15 +25,15 @@
       "output": "dist"
     },
     "win": {
-      "target": [
-        "nsis",
-        "portable"
-      ],
+      "target": "nsis",
       "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false
     },
     "files": [
       "src/**/*",
