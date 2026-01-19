@@ -7,7 +7,8 @@
     "start": "electron .",
     "dev": "set ELECTRON_DEV=true&& electron .",
     "build": "electron-builder --win --x64",
-    "publish": "electron-builder --win --x64 --publish always"
+    "publish": "electron-builder --win --x64 --publish always && npm run cleanup-release",
+    "cleanup-release": "powershell -ExecutionPolicy Bypass -File scripts/cleanup-release.ps1 -version v%npm_package_version%"
   },
   "repository": {
     "type": "git",
@@ -19,7 +20,8 @@
     "publish": {
       "provider": "github",
       "owner": "x-xsazz",
-      "repo": "vanisbeauty-pos"
+      "repo": "vanisbeauty-pos",
+      "releaseType": "release"
     },
     "directories": {
       "output": "dist"
