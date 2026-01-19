@@ -12,6 +12,8 @@ dist/
 .vscode/
 *.swp
 *.swo
+.claude/
+Docs/
 
 # OS files
 .DS_Store

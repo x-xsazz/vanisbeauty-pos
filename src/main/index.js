@@ -8,6 +8,7 @@ const isDev = process.env.ELECTRON_DEV === 'true';
 
 let mainWindow = null;
 let db = null;
+let updateDialogWindow = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -62,6 +63,57 @@ function createWindow() {
   });
 }
 
+function showUpdateDialog(updateInfo) {
+  if (updateDialogWindow) {
+    updateDialogWindow.focus();
+    return;
+  }
+
+  updateDialogWindow = new BrowserWindow({
+    width: 550,
+    height: 450,
+    resizable: false,
+    frame: false,
+    transparent: false,
+    modal: true,
+    parent: mainWindow,
+    backgroundColor: '#0a2d2e',
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      sandbox: false
+    }
+  });
+
+  updateDialogWindow.loadFile(path.join(__dirname, '../renderer/update-dialog.html'));
+
+  updateDialogWindow.once('ready-to-show', () => {
+    updateDialogWindow.show();
+    updateDialogWindow.webContents.send('update-info', updateInfo);
+  });
+
+  updateDialogWindow.on('closed', () => {
+    updateDialogWindow = null;
+    // Clean up listeners
+    ipcMain.removeAllListeners('install-update');
+    ipcMain.removeAllListeners('close-update-dialog');
+  });
+
+  // Handle IPC events from update dialog
+  ipcMain.once('install-update', () => {
+    if (updateDialogWindow) {
+      updateDialogWindow.close();
+    }
+    autoUpdater.quitAndInstall();
+  });
+
+  ipcMain.once('close-update-dialog', () => {
+    if (updateDialogWindow) {
+      updateDialogWindow.close();
+    }
+  });
+}
+
 function setupAutoUpdater() {
   if (isDev) {
     console.log('Auto-updater disabled in development mode');
@@ -102,17 +154,7 @@ function setupAutoUpdater() {
   autoUpdater.on('update-downloaded', (info) => {
     console.log('Update downloaded:', info.version);
     if (mainWindow) {
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Ready',
-        message: 'A new version has been downloaded.',
-        detail: `Version ${info.version} is ready to install. The application will restart to apply the update.`,
-        buttons: ['Restart Now', 'Later']
-      }).then((result) => {
-        if (result.response === 0) {
-          autoUpdater.quitAndInstall();
-        }
-      });
+      showUpdateDialog(info);
     }
   });
 
