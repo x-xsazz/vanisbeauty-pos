@@ -79,5 +79,14 @@ contextBridge.exposeInMainWorld('api', {
   app: {
     getInfo: () => ipcRenderer.invoke('app:getInfo'),
     exitKiosk: (pin) => ipcRenderer.invoke('app:exitKiosk', pin)
+  },
+
+  // Modals
+  modals: {
+    openCustomerLookup: () => ipcRenderer.send('open-customer-lookup'),
+    openPinKeypad: (config) => ipcRenderer.send('open-pin-keypad', config),
+    onCustomerSelected: (callback) => ipcRenderer.on('customer-selected', (event, customer) => callback(customer)),
+    onPinVerified: (callback) => ipcRenderer.on('pin-verified', (event, data) => callback(data)),
+    onAddCustomerFromLookup: (callback) => ipcRenderer.on('open-add-customer-from-lookup', () => callback())
   }
 });

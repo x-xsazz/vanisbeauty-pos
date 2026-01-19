@@ -425,6 +425,8 @@ input, textarea {
 
 .customer-info {
   min-height: 0px;
+  margin-bottom: var(--space-sm);
+  overflow: visible;
 }
 
 .customer-card {
@@ -433,7 +435,10 @@ input, textarea {
   gap: var(--space-md);
   padding: var(--space-md);
   background: var(--bg-black);
-  border: var(--border);
+  border: 2px solid #538085;
+  border-radius: 8px;
+  margin-bottom: var(--space-xs);
+  min-height: 70px;
 }
 
 .customer-avatar {

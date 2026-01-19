@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enter PIN</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/icon.ico">
+  <style>
+    @font-face {
+      font-family: 'Cooper Planck';
+      src: url('./fonts/CooperPlanck4-SH.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Cooper Planck', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a2d2e;
+      color: #fbf2c4;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .pin-container {
+      background: #074457;
+      border: 4px solid #538085;
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      color: #fbf2c4;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+
+    .header p {
+      font-size: 14px;
+      color: #74a892;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .pin-display {
+      background: #0a2d2e;
+      border: 2px solid #538085;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 32px;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      min-height: 80px;
+      align-items: center;
+    }
+
+    .pin-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 3px solid #538085;
+      background: transparent;
+      transition: all 0.2s;
+    }
+
+    .pin-dot.filled {
+      background: #b8cdab;
+      border-color: #b8cdab;
+    }
+
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .key {
+      font-family: 'Cooper Planck', sans-serif;
+      font-size: 32px;
+      font-weight: bold;
+      padding: 24px;
+      border: 2px solid #fbf2c4;
+      background: #b8cdab;
+      color: #0a2d2e;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.15s;
+      text-align: center;
+    }
+
+    .key:hover {
+      background: #e5c185;
+      transform: scale(1.05);
+    }
+
+    .key:active {
+      transform: scale(0.95);
+      background: #f0daa5;
+    }
+
+    .key.zero {
+      grid-column: 2;
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .action-btn {
+      font-family: 'Cooper Planck', sans-serif;
+      font-size: 18px;
+      font-weight: bold;
+      padding: 18px;
+      border: 2px solid #fbf2c4;
+      background: transparent;
+      color: #fbf2c4;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .action-btn:hover {
+      background: #fbf2c4;
+      color: #0a2d2e;
+    }
+
+    .action-btn.clear {
+      background: #c7522a;
+      border-color: #c7522a;
+      color: #fbf2c4;
+    }
+
+    .action-btn.clear:hover {
+      background: #e5c185;
+      border-color: #e5c185;
+      color: #0a2d2e;
+    }
+
+    .error-message {
+      text-align: center;
+      color: #c7522a;
+      font-weight: bold;
+      font-size: 16px;
+      margin-top: 18px;
+      min-height: 24px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .shake {
+      animation: shake 0.4s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="pin-container">
+    <div class="header">
+      <h1 id="title">Admin Access</h1>
+      <p id="subtitle">Enter PIN Code</p>
+    </div>
+
+    <div class="pin-display">
+      <div class="pin-dot" id="dot1"></div>
+      <div class="pin-dot" id="dot2"></div>
+      <div class="pin-dot" id="dot3"></div>
+      <div class="pin-dot" id="dot4"></div>
+      <div class="pin-dot" id="dot5"></div>
+    </div>
+
+    <div class="keypad">
+      <button class="key" onclick="pressKey('1')">1</button>
+      <button class="key" onclick="pressKey('2')">2</button>
+      <button class="key" onclick="pressKey('3')">3</button>
+      <button class="key" onclick="pressKey('4')">4</button>
+      <button class="key" onclick="pressKey('5')">5</button>
+      <button class="key" onclick="pressKey('6')">6</button>
+      <button class="key" onclick="pressKey('7')">7</button>
+      <button class="key" onclick="pressKey('8')">8</button>
+      <button class="key" onclick="pressKey('9')">9</button>
+      <button class="key zero" onclick="pressKey('0')">0</button>
+    </div>
+
+    <div class="action-buttons">
+      <button class="action-btn clear" onclick="clearPin()">Clear</button>
+      <button class="action-btn" onclick="cancel()">Cancel</button>
+    </div>
+
+    <div class="error-message" id="error-message"></div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    let pin = '';
+    let pinType = 'admin'; // or 'staff'
+    let staffId = null;
+
+    // Receive configuration from main process
+    ipcRenderer.on('pin-config', (event, config) => {
+      pinType = config.type || 'admin';
+      staffId = config.staffId || null;
+
+      if (pinType === 'staff') {
+        document.getElementById('title').textContent = 'Staff Login';
+        document.getElementById('subtitle').textContent = config.staffName || 'Enter PIN';
+      }
+    });
+
+    function updateDisplay() {
+      for (let i = 1; i <= 5; i++) {
+        const dot = document.getElementById(`dot${i}`);
+        if (i <= pin.length) {
+          dot.classList.add('filled');
+        } else {
+          dot.classList.remove('filled');
+        }
+      }
+    }
+
+    function pressKey(num) {
+      if (pin.length < 5) {
+        pin += num;
+        updateDisplay();
+
+        // Auto-submit if 5 digits entered
+        if (pin.length === 5) {
+          setTimeout(verifyPin, 200);
+        }
+      }
+    }
+
+    function clearPin() {
+      pin = '';
+      updateDisplay();
+      document.getElementById('error-message').textContent = '';
+    }
+
+    async function verifyPin() {
+      try {
+        let isValid = false;
+
+        if (pinType === 'admin') {
+          isValid = await window.api.admin.verifyPin(pin);
+          if (isValid) {
+            ipcRenderer.send('pin-verified', { type: 'admin', pin });
+          }
+        } else if (pinType === 'staff') {
+          // Verify staff PIN (would need to add this API)
+          const staff = await window.api.staff.get(staffId);
+          isValid = staff && staff.pin === pin;
+          if (isValid) {
+            ipcRenderer.send('pin-verified', { type: 'staff', staffId, staff });
+          }
+        }
+
+        if (!isValid) {
+          showError();
+        }
+      } catch (error) {
+        console.error('PIN verification error:', error);
+        showError();
+      }
+    }
+
+    function showError() {
+      document.getElementById('error-message').textContent = 'Incorrect PIN';
+      document.querySelector('.pin-container').classList.add('shake');
+      setTimeout(() => {
+        document.querySelector('.pin-container').classList.remove('shake');
+      }, 400);
+      clearPin();
+    }
+
+    function cancel() {
+      ipcRenderer.send('pin-cancelled');
+    }
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+      if (e.key >= '0' && e.key <= '9') {
+        pressKey(e.key);
+      } else if (e.key === 'Backspace') {
+        pin = pin.slice(0, -1);
+        updateDisplay();
+      } else if (e.key === 'Enter' && pin.length === 5) {
+        verifyPin();
+      } else if (e.key === 'Escape') {
+        cancel();
+      }
+    });
+  </script>
+</body>
+</html>

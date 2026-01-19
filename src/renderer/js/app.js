@@ -191,8 +191,7 @@
     });
 
     DOM.customerLookupBtn.addEventListener('click', () => {
-      DOM.customerLookupInput.focus();
-      performCustomerSearch(true);
+      window.api.modals.openCustomerLookup();
     });
 
     DOM.customerDropdownAdd?.addEventListener('click', () => {
@@ -214,7 +213,25 @@
 
     // Admin button
     DOM.adminBtn.addEventListener('click', () => {
-      openModal('adminPin');
+      window.api.modals.openPinKeypad({ type: 'admin' });
+    });
+
+    // Modal window event listeners
+    window.api.modals.onCustomerSelected((customer) => {
+      store.setCustomer(customer);
+      DOM.customerLookupInput.value = '';
+      closeCustomerDropdown();
+      renderCustomerInfo();
+    });
+
+    window.api.modals.onPinVerified((data) => {
+      if (data.type === 'admin') {
+        switchView('admin');
+      }
+    });
+
+    window.api.modals.onAddCustomerFromLookup(() => {
+      openModal('newCustomer', {});
     });
 
     // Modal close

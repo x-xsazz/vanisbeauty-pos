@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Lookup</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/icon.ico">
+  <style>
+    @font-face {
+      font-family: 'Cooper Planck';
+      src: url('./fonts/CooperPlanck4-SH.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Cooper Planck', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a2d2e;
+      color: #fbf2c4;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: #074457;
+      border-bottom: 2px solid #538085;
+      padding: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      color: #fbf2c4;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .close-btn {
+      background: #c7522a;
+      border: 2px solid #c7522a;
+      color: #fbf2c4;
+      font-family: 'Cooper Planck', sans-serif;
+      font-size: 18px;
+      font-weight: bold;
+      padding: 12px 24px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+
+    .close-btn:hover {
+      background: #e5c185;
+      border-color: #e5c185;
+      color: #0a2d2e;
+    }
+
+    .content {
+      flex: 1;
+      padding: 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .search-section {
+      background: #074457;
+      border: 2px solid #538085;
+      border-radius: 10px;
+      padding: 18px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 14px 18px;
+      font-family: 'Cooper Planck', sans-serif;
+      font-size: 18px;
+      border: 2px solid #e5c185;
+      border-radius: 8px;
+      background: transparent;
+      color: #fbf2c4;
+      outline: none;
+    }
+
+    .search-input::placeholder {
+      color: #74a892;
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      font-family: 'Cooper Planck', sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      padding: 16px;
+      border: 2px solid #fbf2c4;
+      background: transparent;
+      color: #fbf2c4;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn:hover {
+      background: #fbf2c4;
+      color: #0a2d2e;
+    }
+
+    .btn-primary {
+      background: #b8cdab;
+      border-color: #b8cdab;
+      color: #0a2d2e;
+    }
+
+    .btn-primary:hover {
+      background: #e5c185;
+      border-color: #e5c185;
+    }
+
+    .customers-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+
+    .customer-item {
+      background: #b8cdab;
+      border: 2px solid #538085;
+      border-radius: 8px;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 60px 1fr auto;
+      gap: 18px;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .customer-item:hover {
+      background: #e5c185;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .customer-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      background: #c7522a;
+      border: 2px solid #0a2d2e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #fbf2c4;
+    }
+
+    .customer-details {
+      flex: 1;
+    }
+
+    .customer-name {
+      font-size: 20px;
+      font-weight: bold;
+      color: #0a2d2e;
+      margin-bottom: 4px;
+    }
+
+    .customer-meta {
+      font-family: 'Cooper Planck', monospace;
+      font-size: 14px;
+      color: #074457;
+    }
+
+    .customer-loyalty {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #e5c185;
+      border-radius: 8px;
+      font-weight: bold;
+      color: #0a2d2e;
+      font-size: 14px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: #74a892;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Customer Lookup</h1>
+    <button class="close-btn" onclick="closeWindow()">Close</button>
+  </div>
+
+  <div class="content">
+    <div class="search-section">
+      <input
+        type="text"
+        id="search-input"
+        class="search-input"
+        placeholder="Search by name or phone..."
+        autofocus
+      >
+      <div class="button-group">
+        <button class="btn" onclick="showAllCustomers()">Show All</button>
+        <button class="btn btn-primary" onclick="addNewCustomer()">Add New Customer</button>
+      </div>
+    </div>
+
+    <div class="customers-list" id="customers-list">
+      <div class="empty-state">Type to search or click "Show All"</div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    let allCustomers = [];
+
+    // Load all customers on start
+    async function loadCustomers() {
+      try {
+        allCustomers = await window.api.customers.getAll();
+      } catch (error) {
+        console.error('Failed to load customers:', error);
+      }
+    }
+
+    // Search customers
+    function searchCustomers(query) {
+      if (!query.trim()) {
+        document.getElementById('customers-list').innerHTML = '<div class="empty-state">Type to search or click "Show All"</div>';
+        return;
+      }
+
+      const filtered = allCustomers.filter(c =>
+        c.name.toLowerCase().includes(query.toLowerCase()) ||
+        (c.phone && c.phone.includes(query))
+      );
+
+      displayCustomers(filtered);
+    }
+
+    // Display customers
+    function displayCustomers(customers) {
+      const container = document.getElementById('customers-list');
+
+      if (customers.length === 0) {
+        container.innerHTML = '<div class="empty-state">No customers found</div>';
+        return;
+      }
+
+      container.innerHTML = customers.map(customer => `
+        <div class="customer-item" onclick="selectCustomer(${customer.id})">
+          <div class="customer-avatar">${customer.name.charAt(0).toUpperCase()}</div>
+          <div class="customer-details">
+            <div class="customer-name">${customer.name}</div>
+            <div class="customer-meta">${customer.phone || 'No phone'} • ${customer.visits || 0} visits</div>
+          </div>
+          ${customer.loyalty_points > 0 ? `
+            <div class="customer-loyalty">
+              <span>★</span>
+              <span>${customer.loyalty_points} pts</span>
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    // Show all customers
+    function showAllCustomers() {
+      displayCustomers(allCustomers);
+    }
+
+    // Select customer
+    function selectCustomer(customerId) {
+      const customer = allCustomers.find(c => c.id === customerId);
+      if (customer) {
+        ipcRenderer.send('customer-selected', customer);
+        closeWindow();
+      }
+    }
+
+    // Add new customer
+    function addNewCustomer() {
+      ipcRenderer.send('open-add-customer-modal');
+    }
+
+    // Close window
+    function closeWindow() {
+      ipcRenderer.send('close-customer-lookup');
+    }
+
+    // Search input handler
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      searchCustomers(e.target.value);
+    });
+
+    // Load customers on start
+    loadCustomers();
+  </script>
+</body>
+</html>

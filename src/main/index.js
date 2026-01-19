@@ -9,6 +9,8 @@ const isDev = process.env.ELECTRON_DEV === 'true';
 let mainWindow = null;
 let db = null;
 let updateDialogWindow = null;
+let customerLookupWindow = null;
+let pinKeypadWindow = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -116,6 +118,71 @@ function showUpdateDialog(updateInfo) {
   });
 }
 
+function showCustomerLookup() {
+  if (customerLookupWindow) {
+    customerLookupWindow.focus();
+    return;
+  }
+
+  customerLookupWindow = new BrowserWindow({
+    width: 800,
+    height: 700,
+    resizable: false,
+    frame: false,
+    modal: true,
+    parent: mainWindow,
+    icon: path.join(__dirname, '../../assets/icon.ico'),
+    backgroundColor: '#0a2d2e',
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      nodeIntegration: true,
+      contextIsolation: false,
+      sandbox: false
+    }
+  });
+
+  customerLookupWindow.loadFile(path.join(__dirname, '../renderer/customer-lookup-modal.html'));
+
+  customerLookupWindow.on('closed', () => {
+    customerLookupWindow = null;
+  });
+}
+
+function showPinKeypad(config = {}) {
+  if (pinKeypadWindow) {
+    pinKeypadWindow.focus();
+    return;
+  }
+
+  pinKeypadWindow = new BrowserWindow({
+    width: 550,
+    height: 650,
+    resizable: false,
+    frame: false,
+    modal: true,
+    parent: mainWindow,
+    icon: path.join(__dirname, '../../assets/icon.ico'),
+    backgroundColor: '#0a2d2e',
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      nodeIntegration: true,
+      contextIsolation: false,
+      sandbox: false
+    }
+  });
+
+  pinKeypadWindow.loadFile(path.join(__dirname, '../renderer/pin-keypad-modal.html'));
+
+  pinKeypadWindow.once('ready-to-show', () => {
+    pinKeypadWindow.show();
+    pinKeypadWindow.webContents.send('pin-config', config);
+  });
+
+  pinKeypadWindow.on('closed', () => {
+    pinKeypadWindow = null;
+  });
+}
+
 function setupAutoUpdater() {
   if (isDev) {
     console.log('Auto-updater disabled in development mode');
@@ -171,6 +238,54 @@ app.whenReady().then(async () => {
     await db.initialize();
 
     registerIpcHandlers(ipcMain, db, mainWindow, dialog);
+
+    // Modal window IPC handlers
+    ipcMain.on('open-customer-lookup', () => {
+      showCustomerLookup();
+    });
+
+    ipcMain.on('close-customer-lookup', () => {
+      if (customerLookupWindow) {
+        customerLookupWindow.close();
+      }
+    });
+
+    ipcMain.on('customer-selected', (event, customer) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('customer-selected', customer);
+      }
+      if (customerLookupWindow) {
+        customerLookupWindow.close();
+      }
+    });
+
+    ipcMain.on('open-add-customer-modal', () => {
+      if (customerLookupWindow) {
+        customerLookupWindow.close();
+      }
+      if (mainWindow) {
+        mainWindow.webContents.send('open-add-customer-from-lookup');
+      }
+    });
+
+    ipcMain.on('open-pin-keypad', (event, config) => {
+      showPinKeypad(config);
+    });
+
+    ipcMain.on('pin-verified', (event, data) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('pin-verified', data);
+      }
+      if (pinKeypadWindow) {
+        pinKeypadWindow.close();
+      }
+    });
+
+    ipcMain.on('pin-cancelled', () => {
+      if (pinKeypadWindow) {
+        pinKeypadWindow.close();
+      }
+    });
 
     createWindow();
     setupAutoUpdater();
