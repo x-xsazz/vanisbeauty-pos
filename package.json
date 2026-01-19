@@ -1,0 +1,62 @@
+{
+  "name": "vanisbeauty-pos",
+  "version": "1.0.0",
+  "description": "Local-only POS system for beauty parlor",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "set ELECTRON_DEV=true&& electron .",
+    "build": "electron-builder --win --x64",
+    "build:portable": "electron-builder --win portable",
+    "publish": "electron-builder --win --x64 --publish always"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/x-xsazz/vanisbeauty-pos.git"
+  },
+  "build": {
+    "appId": "com.vanisbeauty.pos",
+    "productName": "VanisBeauty POS",
+    "publish": {
+      "provider": "github",
+      "owner": "x-xsazz",
+      "repo": "vanisbeauty-pos"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/",
+        "to": "assets/"
+      }
+    ],
+    "asar": true
+  },
+  "devDependencies": {
+    "electron": "^40.0.0",
+    "electron-builder": "^23.0.6"
+  },
+  "dependencies": {
+    "electron-updater": "^6.7.3",
+    "sql.js": "^1.10.3"
+  },
+  "author": "VanisBeauty",
+  "license": "UNLICENSED",
+  "private": true
+}

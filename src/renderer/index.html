@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:; font-src 'self' data:">
+  <title>VanisBeauty POS</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <!-- Main POS View -->
+  <div id="pos-view" class="view active">
+    <div class="pos-shell">
+      <div class="pos-container">
+      <!-- LEFT PANEL - Logo, Search, Categories (Vertical) -->
+      <section class="panel panel-left">
+        <div class="logo-section">
+          <div class="logo" id="logo-btn" title="Long press for admin">
+            <span class="logo-text">VANIS BEAUTY</span>
+          </div>
+        </div>
+
+        <div class="search-section">
+          <input type="text" id="service-search" placeholder="SEARCH" class="search-input">
+        </div>
+
+        <nav class="category-nav-vertical" id="category-nav">
+          <button class="category-btn-vertical active" data-category="HOME">Home</button>
+        </nav>
+      </section>
+
+      <!-- CENTER PANEL - Staff Row + Items Grid -->
+      <section class="panel panel-center">
+        <!-- Staff Pictures Row -->
+        <div class="staff-pictures-row" id="staff-selector">
+          <div class="staff-pictures" id="staff-chips">
+            <!-- Staff picture buttons rendered here -->
+          </div>
+          <div class="staff-selected-display" id="staff-selected-display">
+            <div class="staff-selected-label">Selected Staff</div>
+            <div class="staff-selected-name" id="staff-selected-name">None</div>
+          </div>
+        </div>
+
+        <!-- Items Grid -->
+        <div class="items-grid" id="services-grid">
+          <!-- Service/item cards will be rendered here -->
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL - Customer Lookup + Checkout -->
+      <section class="panel panel-right" id="checkout-panel">
+        <!-- Customer Lookup Input -->
+        <div class="customer-input-field customer-lookup" id="customer-lookup">
+          <input type="text" id="customer-lookup-input" class="form-input-large" placeholder="">
+          <div class="customer-dropdown" id="customer-dropdown">
+            <div class="customer-dropdown-list" id="customer-dropdown-list"></div>
+            <div class="customer-dropdown-empty" id="customer-dropdown-empty">No customer found</div>
+            <button class="btn btn-primary customer-dropdown-add" id="customer-dropdown-add">Add New Customer</button>
+          </div>
+        </div>
+
+        <!-- Customer Lookup Button -->
+        <button class="btn btn-lookup" id="customer-lookup-btn">Customer Lookup</button>
+
+        <!-- Selected Customer Display -->
+        <div class="customer-info" id="customer-info"></div>
+
+        <!-- Checkout Field - Items List -->
+        <div class="checkout-card">
+          <div class="checkout-field-label">Check out field</div>
+          <div class="checkout-items-list" id="bill-items">
+            <div class="empty-checkout">
+              <p>Select staff and tap items</p>
+            </div>
+          </div>
+
+          <!-- Totals -->
+          <div class="totals-section">
+            <div class="total-row">
+              <span>subtotal</span>
+              <span id="subtotal">$0.00</span>
+            </div>
+            <div class="total-row" id="discount-row" style="display: none;">
+              <span>discount</span>
+              <span id="discount-amount">-$0.00</span>
+            </div>
+            <div class="total-row">
+              <span>total</span>
+              <span id="total">$0.00</span>
+            </div>
+          </div>
+
+          <!-- ADD Discount Button -->
+          <button class="btn btn-discount" id="add-discount-btn">ADD Discount</button>
+        </div>
+
+        <!-- Payment Buttons (Full Width) -->
+        <div class="payment-card-grid">
+          <button class="btn payment-card payment-cash" id="pay-cash-btn" disabled>PAY BY CASH</button>
+          <button class="btn payment-card payment-card-method" id="pay-card-btn" disabled>PAY BY CARD</button>
+          <button class="btn payment-card payment-payid" id="pay-payid-btn" disabled>PAYID</button>
+          <button class="btn payment-card payment-credit" id="pay-credit-btn" disabled>CREDIT</button>
+        </div>
+
+        <!-- Admin Button -->
+        <button class="btn btn-admin-bottom" id="admin-btn">Admin</button>
+      </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin View -->
+  <div id="admin-view" class="view">
+    <div class="admin-container">
+      <header class="admin-header">
+        <h1>Admin Portal</h1>
+        <button class="btn btn-outline" id="exit-admin-btn">Back to POS</button>
+      </header>
+
+      <nav class="admin-nav">
+        <button class="admin-nav-btn active" data-section="services">Services</button>
+        <button class="admin-nav-btn" data-section="categories">Categories</button>
+        <button class="admin-nav-btn" data-section="customers">Customers</button>
+        <button class="admin-nav-btn" data-section="staff">Staff</button>
+        <button class="admin-nav-btn" data-section="reports">Reports</button>
+        <button class="admin-nav-btn" data-section="settings">Settings</button>
+      </nav>
+
+      <main class="admin-content" id="admin-content">
+        <!-- Admin sections will be rendered here -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal Container -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">Modal Title</h3>
+        <button class="btn btn-icon modal-close" id="modal-close">
+          <span class="icon">&#x2715;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <!-- Modal content will be rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/state.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
