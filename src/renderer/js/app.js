@@ -13,7 +13,6 @@
     adminView: document.getElementById('admin-view'),
 
     // Services Panel
-    serviceSearch: document.getElementById('service-search'),
     categoryNav: document.getElementById('category-nav'),
     servicesGrid: document.getElementById('services-grid'),
     logoBtn: document.getElementById('logo-btn'),
@@ -137,12 +136,6 @@
   // ============================================
 
   function setupEventListeners() {
-    // Service search
-    DOM.serviceSearch.addEventListener('input', debounce((e) => {
-      store.setState({ serviceSearchQuery: e.target.value });
-      renderServices();
-    }, 200));
-
     // Category selection
     DOM.categoryNav.addEventListener('click', (e) => {
       if (e.target.classList.contains('category-btn-vertical')) {
@@ -211,10 +204,20 @@
     DOM.payPayIDBtn.addEventListener('click', () => openModal('payment', { method: 'payid' }));
     DOM.payCreditBtn.addEventListener('click', () => openModal('payment', { method: 'credit' }));
 
-    // Admin button
-    DOM.adminBtn.addEventListener('click', () => {
-      window.api.modals.openPinKeypad({ type: 'admin' });
-    });
+    // Admin button (removed from UI, now using logo)
+    if (DOM.adminBtn) {
+      DOM.adminBtn.addEventListener('click', () => {
+        window.api.modals.openPinKeypad({ type: 'admin' });
+      });
+    }
+
+    // Logo click to open admin
+    const logoSection = document.querySelector('.logo-section');
+    if (logoSection) {
+      logoSection.addEventListener('click', () => {
+        window.api.modals.openPinKeypad({ type: 'admin' });
+      });
+    }
 
     // Modal window event listeners
     window.api.modals.onCustomerSelected((customer) => {
@@ -226,7 +229,9 @@
 
     window.api.modals.onPinVerified((data) => {
       if (data.type === 'admin') {
-        switchView('admin');
+        store.setView('admin');
+        store.setAdminAuthenticated(true);
+        renderAdminServices();
       }
     });
 
@@ -298,10 +303,13 @@
       .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
     const categoriesWithHome = [{ name: 'HOME' }, ...categoryList];
-    const categoryColors = generateCategoryColors(categoriesWithHome.length);
+    
+    // Use same color logic as admin reports
+    const categoryPalette = ['#085578', '#538085', '#faf1e2', '#e3baaa', '#e47e8c', '#ffaa6a'];
 
     const categoryBtns = categoriesWithHome.map((cat, index) => {
-      const bgColor = categoryColors[index];
+      // HOME gets special color, rest use palette (same as reports)
+      const bgColor = index === 0 ? '#b8cdab' : categoryPalette[(index - 1) % categoryPalette.length];
       const textColor = getTextColorForBackground(bgColor);
       return `
         <button class="category-btn-vertical ${selectedCategory === cat.name ? 'active' : ''}" data-category="${cat.name}" style="--cat-color: ${bgColor}; --cat-text-color: ${textColor};">
@@ -314,23 +322,16 @@
   }
 
   function renderServices() {
-    const { services, selectedCategory, serviceSearchQuery } = store.getState();
+    const { services, selectedCategory } = store.getState();
 
     let filtered = services;
 
     // Filter by category
     if (selectedCategory === 'HOME') {
-      filtered = filtered.filter(s => Number(s.show_on_home) === 1 || (s.category && s.category.toUpperCase() === 'HOME'));
-    } else if (selectedCategory !== 'All') {
+      // HOME only shows services marked to show on home
+      filtered = filtered.filter(s => s.show_on_home === 1);
+    } else {
       filtered = filtered.filter(s => s.category === selectedCategory);
-    }
-
-    // Filter by search
-    if (serviceSearchQuery) {
-      const query = serviceSearchQuery.toLowerCase();
-      filtered = filtered.filter(s =>
-        s.name.toLowerCase().includes(query)
-      );
     }
 
     if (filtered.length === 0) {
@@ -1397,6 +1398,132 @@
           }
         };
 
+      case 'addReservation':
+      case 'editReservation':
+        const isEdit = type === 'editReservation';
+        const reservation = isEdit ? data : { date: data.date || getLocalDateString(), start_time: '09:00', customer_id: null, service_id: null, staff_id: null, status: 'scheduled' };
+        
+        return {
+          title: isEdit ? 'Edit Reservation' : 'Add Reservation',
+          body: `
+            <div class="form-group">
+              <label class="form-label">Date *</label>
+              <input type="date" class="form-input" id="reservation-date" value="${reservation.date || reservation.start_time?.split(' ')[0] || getLocalDateString()}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Time *</label>
+              <input type="time" class="form-input" id="reservation-time" value="${reservation.start_time?.split(' ')[1]?.substring(0, 5) || '09:00'}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Customer</label>
+              <select class="form-input" id="reservation-customer">
+                <option value="">Select Customer (or create new below)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Or Add New Customer</label>
+              <input type="text" class="form-input" id="reservation-new-customer-name" placeholder="New customer name">
+              <input type="tel" class="form-input mt-sm" id="reservation-new-customer-phone" placeholder="Mobile number">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Service</label>
+              <select class="form-input" id="reservation-service">
+                <option value="">Select Service</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Staff</label>
+              <select class="form-input" id="reservation-staff">
+                <option value="">Select Staff</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select class="form-input" id="reservation-status">
+                <option value="scheduled" ${reservation.status === 'scheduled' ? 'selected' : ''}>Scheduled</option>
+                <option value="confirmed" ${reservation.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
+                <option value="completed" ${reservation.status === 'completed' ? 'selected' : ''}>Completed</option>
+                <option value="cancelled" ${reservation.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+              </select>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-outline modal-close">Cancel</button>
+              <button class="btn btn-primary" id="save-reservation-btn">${isEdit ? 'Update' : 'Create'} Reservation</button>
+            </div>
+          `,
+          onMount: async () => {
+            // Load customers
+            const customersResult = await window.api.customers.getAll();
+            const customers = customersResult.success ? customersResult.data : [];
+            const customerSelect = document.getElementById('reservation-customer');
+            customerSelect.innerHTML = '<option value="">Select Customer (or create new below)</option>' + 
+              customers.map(c => `<option value="${c.id}" ${reservation.customer_id === c.id ? 'selected' : ''}>${c.name} - ${c.phone || 'No phone'}</option>`).join('');
+
+            // Load services
+            const servicesResult = await window.api.services.getAll(true);
+            const services = servicesResult.success ? servicesResult.data : [];
+            const serviceSelect = document.getElementById('reservation-service');
+            serviceSelect.innerHTML = '<option value="">Select Service</option>' + 
+              services.map(s => `<option value="${s.id}" ${reservation.service_id === s.id ? 'selected' : ''}>${s.name} - ${formatCurrency(s.price)}</option>`).join('');
+
+            // Load staff
+            const staffResult = await window.api.staff.getAll(true);
+            const staffList = staffResult.success ? staffResult.data : [];
+            const staffSelect = document.getElementById('reservation-staff');
+            staffSelect.innerHTML = '<option value="">Select Staff</option>' + 
+              staffList.map(s => `<option value="${s.id}" ${reservation.staff_id === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
+
+            document.getElementById('save-reservation-btn')?.addEventListener('click', async () => {
+              const date = document.getElementById('reservation-date').value;
+              const time = document.getElementById('reservation-time').value;
+              const customerIdSelect = document.getElementById('reservation-customer').value;
+              const newCustomerName = document.getElementById('reservation-new-customer-name').value.trim();
+              const newCustomerPhone = document.getElementById('reservation-new-customer-phone').value.trim();
+              const serviceId = document.getElementById('reservation-service').value;
+              const staffId = document.getElementById('reservation-staff').value;
+              const status = document.getElementById('reservation-status').value;
+
+              if (!date || !time) {
+                showToast('Please select date and time', 'error');
+                return;
+              }
+
+              let customerId = customerIdSelect;
+
+              // Create new customer if provided
+              if (newCustomerName && newCustomerPhone) {
+                const newCustomerResult = await window.api.customers.create({
+                  name: newCustomerName,
+                  phone: newCustomerPhone,
+                  email: '',
+                  credit: 0
+                });
+                if (newCustomerResult.success) {
+                  customerId = newCustomerResult.data.id;
+                  showToast('New customer created', 'success');
+                } else {
+                  showToast('Failed to create customer', 'error');
+                  return;
+                }
+              }
+
+              const reservationData = {
+                customer_id: customerId || null,
+                service_id: serviceId || null,
+                staff_id: staffId || null,
+                start_time: `${date} ${time}:00`,
+                status: status
+              };
+
+              // TODO: Implement create/update reservation API
+              showToast('Reservation management coming soon', 'info');
+              console.log('Reservation data:', reservationData);
+              closeModal();
+              renderAdminReservations();
+            });
+          }
+        };
+
       default:
         return { title: 'Modal', body: '<p>Unknown modal type</p>' };
     }
@@ -1423,6 +1550,9 @@
         break;
       case 'reports':
         await renderAdminReports();
+        break;
+      case 'reservations':
+        await renderAdminReservations();
         break;
       case 'settings':
         await renderAdminSettings();
@@ -1924,39 +2054,18 @@
           </div>
         </section>
 
-        <aside class="reports-right">
-          <div class="admin-card reports-calendar-card">
-            <h3 class="admin-card-title">Calendar</h3>
-            <div class="reports-date-pills">
-              <button class="reports-date-pill" data-range="prev">Prev Day</button>
-              <button class="reports-date-pill ${isTodaySelected ? 'active' : ''}" data-range="today">Today</button>
-              <button class="reports-date-pill" data-range="next">Next Day</button>
-            </div>
-            <div class="reports-calendar-row">
-              <input type="date" class="form-input" id="reports-date-input" value="${date}">
-            </div>
-            <button class="btn btn-primary mt-md" id="reports-today">Today</button>
+        <div class="admin-card reports-staff-card">
+          <h3 class="admin-card-title">Staff Reports</h3>
+          <div class="staff-report-grid">
+            ${staffCards || '<div class="staff-report-empty">No staff data</div>'}
           </div>
+        </div>
 
-          <div class="admin-card reports-reservations-card">
-            <h3 class="admin-card-title">Reservations</h3>
-            <div class="reservation-list">
-              ${reservationsMarkup}
-            </div>
-          </div>
-
-          <div class="admin-card reports-staff-card">
-            <h3 class="admin-card-title">Staff Reports</h3>
-            <div class="staff-report-grid">
-              ${staffCards || '<div class="staff-report-empty">No staff data</div>'}
-            </div>
-          </div>
-
-          <div class="reports-actions">
-            <button class="btn btn-outline" id="reports-export-csv">Save as CSV</button>
-            <button class="btn btn-outline" id="reports-print">Print</button>
-          </div>
-        </aside>
+        <div class="reports-actions">
+          <button class="btn btn-outline" id="reports-export-csv">Save as CSV</button>
+          <button class="btn btn-outline" id="reports-print">Print</button>
+        </div>
+        </section>
       </div>
     `;
 
@@ -2050,6 +2159,113 @@
     } else {
       stopReportsTimer();
     }
+  }
+
+  async function renderAdminReservations() {
+    const date = reportsSelectedDate;
+    const isTodaySelected = reportsSelectedDate === getLocalDateString();
+    
+    const reservationsResult = await window.api.reports.reservationsByDate(date);
+    const reservations = reservationsResult.success ? reservationsResult.data : [];
+
+    const reservationsMarkup = reservations.length === 0
+      ? `<div class="staff-report-empty">No reservations for this date</div>`
+      : reservations.map(res => `
+        <div class="reservation-item">
+          <div class="reservation-time">${formatTime(res.start_time)}</div>
+          <div class="reservation-main">
+            <div class="reservation-name">${res.customer_name || 'Walk-in'}</div>
+            <div class="reservation-meta">${res.service_name || 'Reservation'} • ${res.staff_name || 'Unassigned'}</div>
+          </div>
+          <div class="reservation-status">${(res.status || 'scheduled').toUpperCase()}</div>
+          <div class="reservation-actions">
+            <button class="btn btn-outline btn-sm" data-edit-reservation="${res.id}">Edit</button>
+            <button class="btn btn-danger btn-sm" data-delete-reservation="${res.id}">Delete</button>
+          </div>
+        </div>
+      `).join('');
+
+    DOM.adminContent.innerHTML = `
+      <div class="admin-card reports-calendar-card">
+        <h3 class="admin-card-title">Select Date</h3>
+        <div class="reports-date-pills">
+          <button class="reports-date-pill" data-range="prev">Prev Day</button>
+          <button class="reports-date-pill ${isTodaySelected ? 'active' : ''}" data-range="today" id="today-date-btn">Today</button>
+          <button class="reports-date-pill" data-range="next">Next Day</button>
+        </div>
+        <div class="reports-date-display">
+          <button class="btn btn-outline" id="select-date-btn">${formatDateDisplay(date)}</button>
+        </div>
+        <input type="date" id="hidden-date-input" style="display: none;" value="${date}">
+      </div>
+
+      <div class="admin-card reports-reservations-card">
+        <div class="admin-card-header">
+          <h3 class="admin-card-title">Reservations for ${date}</h3>
+          <button class="btn btn-primary" id="add-reservation-btn">+ Add Reservation</button>
+        </div>
+        <div class="reservation-list">
+          ${reservationsMarkup}
+        </div>
+      </div>
+    `;
+
+    document.querySelectorAll('.reports-date-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const range = btn.dataset.range;
+        if (range === 'prev') {
+          const d = new Date(reportsSelectedDate);
+          d.setDate(d.getDate() - 1);
+          reportsSelectedDate = getLocalDateString(d);
+        } else if (range === 'next') {
+          const d = new Date(reportsSelectedDate);
+          d.setDate(d.getDate() + 1);
+          reportsSelectedDate = getLocalDateString(d);
+        } else {
+          reportsSelectedDate = getLocalDateString();
+        }
+        renderAdminReservations();
+      });
+    });
+
+    // Date selection button - opens hidden date input
+    document.getElementById('select-date-btn')?.addEventListener('click', () => {
+      const hiddenInput = document.getElementById('hidden-date-input');
+      if (hiddenInput) {
+        hiddenInput.showPicker();
+      }
+    });
+
+    document.getElementById('hidden-date-input')?.addEventListener('change', (e) => {
+      if (e.target.value) {
+        reportsSelectedDate = e.target.value;
+        renderAdminReservations();
+      }
+    });
+
+    document.getElementById('add-reservation-btn')?.addEventListener('click', () => {
+      openModal('addReservation', { date: reportsSelectedDate });
+    });
+
+    document.querySelectorAll('[data-edit-reservation]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = parseInt(btn.dataset.editReservation);
+        const reservation = reservations.find(r => r.id === id);
+        if (reservation) {
+          openModal('editReservation', reservation);
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-delete-reservation]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = parseInt(btn.dataset.deleteReservation);
+        if (confirm('Are you sure you want to delete this reservation?')) {
+          // TODO: Implement delete reservation API call
+          showToast('Delete reservation functionality coming soon', 'info');
+        }
+      });
+    });
   }
 
   async function renderAdminSettings() {
@@ -2378,6 +2594,12 @@
     return local.toISOString().split('T')[0];
   }
 
+  function formatDateDisplay(dateString) {
+    const date = new Date(dateString + 'T00:00:00');
+    const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+  }
+
   function addDays(dateString, delta) {
     const date = new Date(`${dateString}T00:00:00`);
     date.setDate(date.getDate() + delta);
@@ -2504,11 +2726,7 @@
   }
 
   function goHome() {
-    store.setState({ selectedCategory: 'HOME', serviceSearchQuery: '' });
-    if (DOM.serviceSearch) {
-      DOM.serviceSearch.value = '';
-      setTimeout(() => DOM.serviceSearch.blur(), 0);
-    }
+    store.setState({ selectedCategory: 'HOME' });
     renderCategories();
     renderServices();
   }

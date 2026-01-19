@@ -73,15 +73,15 @@ function showUpdateDialog(updateInfo) {
   }
 
   updateDialogWindow = new BrowserWindow({
-    width: 550,
-    height: 450,
+    width: 420,
+    height: 380,
     resizable: false,
     frame: false,
     transparent: false,
     modal: true,
     parent: mainWindow,
     icon: path.join(__dirname, '../../assets/icon.ico'),
-    backgroundColor: '#0a2d2e',
+    backgroundColor: '#0B0E11',
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -125,14 +125,14 @@ function showCustomerLookup() {
   }
 
   customerLookupWindow = new BrowserWindow({
-    width: 800,
-    height: 700,
+    width: 600,
+    height: 550,
     resizable: false,
     frame: false,
     modal: true,
     parent: mainWindow,
     icon: path.join(__dirname, '../../assets/icon.ico'),
-    backgroundColor: '#0a2d2e',
+    backgroundColor: '#0B0E11',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       nodeIntegration: true,
@@ -155,14 +155,14 @@ function showPinKeypad(config = {}) {
   }
 
   pinKeypadWindow = new BrowserWindow({
-    width: 550,
-    height: 650,
+    width: 420,
+    height: 480,
     resizable: false,
     frame: false,
     modal: true,
     parent: mainWindow,
     icon: path.join(__dirname, '../../assets/icon.ico'),
-    backgroundColor: '#0a2d2e',
+    backgroundColor: '#0B0E11',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       nodeIntegration: true,
@@ -175,6 +175,7 @@ function showPinKeypad(config = {}) {
 
   pinKeypadWindow.once('ready-to-show', () => {
     pinKeypadWindow.show();
+    pinKeypadWindow.webContents.openDevTools(); // Open DevTools to see console
     pinKeypadWindow.webContents.send('pin-config', config);
   });
 

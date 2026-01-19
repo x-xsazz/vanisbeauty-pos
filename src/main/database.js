@@ -773,6 +773,13 @@ class Database {
 
   verifyAdminPin(pin) {
     const adminPin = this.getSetting('admin_pin');
+    console.log('PIN Verification:', {
+      inputPin: pin,
+      inputType: typeof pin,
+      storedPin: adminPin,
+      storedType: typeof adminPin,
+      match: pin === adminPin
+    });
     return pin === adminPin;
   }
 
