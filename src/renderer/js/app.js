@@ -89,6 +89,17 @@
   // Admin > Services filter state
   let adminServicesFilter = { category: 'all', status: 'all' };
 
+  // Which staff are currently clocked in (today), for the main-screen green highlight/reorder.
+  // Kept out of renderStaff() itself so plain staff-selection clicks stay instant - this is
+  // refreshed explicitly (app load + after any clock in/out/edit) rather than on every render.
+  let clockedInStaffIds = new Set();
+
+  async function refreshClockedInStaff() {
+    const result = await window.api.staff.getClockedInIds(getLocalDateString());
+    clockedInStaffIds = new Set(result.success ? result.data : []);
+    renderStaff();
+  }
+
   // ============================================
   // INITIALIZATION
   // ============================================
@@ -135,6 +146,7 @@
       updateTotals();
       renderCustomerInfo();
       goHome();
+      refreshClockedInStaff();
 
     } catch (error) {
       console.error('Failed to initialize app:', error);
@@ -486,22 +498,45 @@
     const { staff, selectedStaff } = store.getState();
     const activeStaff = staff.filter(s => s.role !== 'admin');
 
+    // Capture current box positions + clocked-in state before touching the DOM, so clocked-in
+    // reordering can slide into place (FLIP) instead of just snapping, and so we only animate
+    // the green fade-in for staff who *just* clocked in this render - not on every re-render
+    // (e.g. a plain staff-selection click shouldn't make already-clocked-in boxes flicker).
+    const oldRects = new Map();
+    const wasClockedIn = new Set();
+    DOM.staffChips.querySelectorAll('.staff-picture-box[data-staff-id]').forEach(box => {
+      oldRects.set(box.dataset.staffId, box.getBoundingClientRect());
+      if (box.classList.contains('clocked-in')) {
+        wasClockedIn.add(box.dataset.staffId);
+      }
+    });
+
+    // Clocked-in staff move to the front; stable within each group otherwise.
+    const sortedStaff = [
+      ...activeStaff.filter(s => clockedInStaffIds.has(s.id)),
+      ...activeStaff.filter(s => !clockedInStaffIds.has(s.id))
+    ];
+
     // Always render 5 staff picture boxes
     const staffBoxes = [];
     for (let i = 0; i < 5; i++) {
-      const staffMember = activeStaff[i];
+      const staffMember = sortedStaff[i];
       if (staffMember) {
+        const isClockedIn = clockedInStaffIds.has(staffMember.id);
         const photoUrl = staffMember.photo_path ? toFileUrl(staffMember.photo_path) : '';
         const photoMarkup = photoUrl
           ? `<img class="staff-photo" src="${photoUrl}" alt="${staffMember.name}">`
           : `<span class="staff-initial">${staffMember.name.charAt(0)}</span>`;
 
+        const clockedInClass = isClockedIn ? 'clocked-in' : '';
+        const selectedClass = selectedStaff?.id === staffMember.id ? 'active' : '';
         staffBoxes.push(`
-          <button class="staff-picture-box ${selectedStaff?.id === staffMember.id ? 'active' : ''}" data-staff-id="${staffMember.id}">
+          <button class="staff-picture-box ${selectedClass} ${clockedInClass}" data-staff-id="${staffMember.id}">
             <div class="staff-picture-placeholder">
               ${photoMarkup}
             </div>
             <div class="staff-picture-name">${staffMember.name}</div>
+            ${isClockedIn ? '<span class="staff-clocked-badge">Clocked In</span>' : ''}
           </button>
         `);
       } else {
@@ -518,6 +553,39 @@
     }
 
     DOM.staffChips.innerHTML = staffBoxes.join('');
+
+    // FLIP: slide boxes from their old position to the new one instead of snapping. Boxes that
+    // just became clocked-in get their green state pulled off then re-added a frame later, so
+    // its transition actually fires as a fade-in; boxes that were already clocked-in keep the
+    // class the whole time so unrelated re-renders (e.g. picking a different staff) don't flicker.
+    requestAnimationFrame(() => {
+      const justClockedIn = [];
+      DOM.staffChips.querySelectorAll('.staff-picture-box[data-staff-id]').forEach(box => {
+        const id = box.dataset.staffId;
+        const oldRect = oldRects.get(id);
+        if (oldRect) {
+          const newRect = box.getBoundingClientRect();
+          const dx = oldRect.left - newRect.left;
+          const dy = oldRect.top - newRect.top;
+          if (dx || dy) {
+            box.style.transition = 'none';
+            box.style.transform = `translate(${dx}px, ${dy}px)`;
+          }
+        }
+        if (box.classList.contains('clocked-in') && !wasClockedIn.has(id)) {
+          box.classList.remove('clocked-in');
+          justClockedIn.push(box);
+        }
+      });
+
+      requestAnimationFrame(() => {
+        DOM.staffChips.querySelectorAll('.staff-picture-box[data-staff-id]').forEach(box => {
+          box.style.transition = '';
+          box.style.transform = '';
+        });
+        justClockedIn.forEach(box => box.classList.add('clocked-in'));
+      });
+    });
 
     // Update selected staff display
     const staffSelectedDisplay = document.getElementById('staff-selected-display');
@@ -1110,12 +1178,112 @@
                   showToast(`${staffMember.name} clocked in`, 'success');
                 }
                 closeModal();
+                refreshClockedInStaff();
               });
             }
 
             cancelBtn?.addEventListener('click', closeModal);
           }
         };
+
+      case 'editStaffTimeLogs': {
+        const { staffId, staffName, date } = data;
+        return {
+          title: `Edit Time Log — ${staffName}`,
+          body: `
+            <div id="time-log-list" class="time-log-list">
+              <p class="text-muted">Loading…</p>
+            </div>
+            <button class="btn btn-outline btn-block" id="add-time-log-btn" type="button">+ Add Entry</button>
+            <div class="modal-footer">
+              <button class="btn btn-primary" id="time-log-done" type="button">Done</button>
+            </div>
+          `,
+          onMount: () => {
+            const listEl = document.getElementById('time-log-list');
+
+            const renderRow = (log) => `
+              <div class="time-log-row" data-log-id="${log.id || ''}">
+                <div class="time-log-field">
+                  <label>Clock in</label>
+                  <input type="time" class="form-input time-log-in" value="${log.clock_in ? log.clock_in.slice(11, 16) : ''}">
+                </div>
+                <div class="time-log-field">
+                  <label>Clock out</label>
+                  <input type="time" class="form-input time-log-out" value="${log.clock_out ? log.clock_out.slice(11, 16) : ''}">
+                </div>
+                <div class="time-log-actions">
+                  <button class="btn btn-primary btn-sm" data-save-log type="button">Save</button>
+                  ${log.id ? `<button class="btn btn-danger btn-sm" data-delete-log type="button">Delete</button>` : ''}
+                </div>
+              </div>
+            `;
+
+            const wireRow = (row) => {
+              row.querySelector('[data-save-log]').addEventListener('click', async () => {
+                const logId = row.dataset.logId;
+                const inVal = row.querySelector('.time-log-in').value;
+                const outVal = row.querySelector('.time-log-out').value;
+
+                if (!inVal) {
+                  showToast('Clock in time is required', 'error');
+                  return;
+                }
+
+                const clockIn = `${date} ${inVal}:00`;
+                const clockOut = outVal ? `${date} ${outVal}:00` : null;
+
+                const result = logId
+                  ? await window.api.staff.updateTimeLog(parseInt(logId), { clock_in: clockIn, clock_out: clockOut })
+                  : await window.api.staff.createTimeLog(staffId, { clock_in: clockIn, clock_out: clockOut });
+
+                if (result.success) {
+                  showToast('Time log saved', 'success');
+                  await loadLogs();
+                  await refreshClockedInStaff();
+                  renderAdminReports();
+                } else {
+                  showToast(result.error || 'Failed to save time log', 'error');
+                }
+              });
+
+              row.querySelector('[data-delete-log]')?.addEventListener('click', async () => {
+                const logId = row.dataset.logId;
+                const result = await window.api.staff.deleteTimeLog(parseInt(logId));
+                if (result.success) {
+                  showToast('Entry deleted', 'success');
+                  await loadLogs();
+                  await refreshClockedInStaff();
+                  renderAdminReports();
+                } else {
+                  showToast(result.error || 'Failed to delete entry', 'error');
+                }
+              });
+            };
+
+            const loadLogs = async () => {
+              const result = await window.api.staff.getTimeLogsForDate(staffId, date);
+              const logs = result.success ? result.data : [];
+              listEl.innerHTML = logs.length === 0
+                ? '<p class="text-muted">No time log entries for this date.</p>'
+                : logs.map(renderRow).join('');
+              listEl.querySelectorAll('.time-log-row').forEach(wireRow);
+            };
+
+            document.getElementById('add-time-log-btn').addEventListener('click', () => {
+              if (listEl.querySelector('p')) {
+                listEl.innerHTML = '';
+              }
+              listEl.insertAdjacentHTML('beforeend', renderRow({ id: null, clock_in: null, clock_out: null }));
+              wireRow(listEl.lastElementChild);
+            });
+
+            document.getElementById('time-log-done').addEventListener('click', closeModal);
+
+            loadLogs();
+          }
+        };
+      }
 
       case 'confirm':
         return {
@@ -2281,6 +2449,55 @@
     });
   }
 
+  // Shared "Select Date" card (Prev/Today/Next + date picker) used by both Reports and
+  // Reservations, since they both browse the same reportsSelectedDate.
+  function renderDateNavCard(date) {
+    const isTodaySelected = date === getLocalDateString();
+    return `
+      <div class="admin-card reports-calendar-card">
+        <h3 class="admin-card-title">Select Date</h3>
+        <div class="reports-date-pills">
+          <button class="reports-date-pill" data-range="prev" type="button">Prev Day</button>
+          <button class="reports-date-pill ${isTodaySelected ? 'active' : ''}" data-range="today" type="button">Today</button>
+          <button class="reports-date-pill" data-range="next" type="button">Next Day</button>
+        </div>
+        <div class="reports-date-display">
+          <button class="btn btn-outline" id="select-date-btn" type="button">${formatDateDisplay(date)}</button>
+        </div>
+        <input type="date" id="hidden-date-input" style="display: none;" value="${date}">
+      </div>
+    `;
+  }
+
+  function wireDateNavHandlers(onDateChange) {
+    document.querySelectorAll('.reports-date-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const range = btn.dataset.range;
+        if (range === 'prev') {
+          reportsSelectedDate = addDays(reportsSelectedDate, -1);
+        } else if (range === 'next') {
+          reportsSelectedDate = addDays(reportsSelectedDate, 1);
+        } else {
+          reportsSelectedDate = getLocalDateString();
+        }
+        reportsFollowingToday = reportsSelectedDate === getLocalDateString();
+        onDateChange();
+      });
+    });
+
+    document.getElementById('select-date-btn')?.addEventListener('click', () => {
+      document.getElementById('hidden-date-input')?.showPicker();
+    });
+
+    document.getElementById('hidden-date-input')?.addEventListener('change', (e) => {
+      if (e.target.value) {
+        reportsSelectedDate = e.target.value;
+        reportsFollowingToday = reportsSelectedDate === getLocalDateString();
+        onDateChange();
+      }
+    });
+  }
+
   async function renderAdminReports() {
     // If we're supposed to be tracking "today" and a day has rolled over since the last time
     // this rendered (e.g. the kiosk sat idle on another admin section overnight), catch up now
@@ -2338,20 +2555,16 @@
         <details class="staff-report-card">
           <summary>
             <div class="staff-report-title">
-              <span>${staff.staff_name}</span>
+              <span class="staff-report-name" data-staff-id="${staff.staff_id}" data-staff-name="${staff.staff_name}" title="Long-press to edit clock times">${staff.staff_name}</span>
               <span class="staff-report-meta">${staff.jobs_count} jobs</span>
+            </div>
+            <div class="staff-report-times">
+              <span class="staff-report-clock">In ${staff.first_clock_in ? formatTime(staff.first_clock_in) : '--'}</span>
+              <span class="staff-report-clock">Out ${staff.last_clock_out ? formatTime(staff.last_clock_out) : '--'}</span>
             </div>
             <div class="staff-report-total">${formatCurrency(staff.total_sales || 0)}</div>
           </summary>
           <div class="staff-report-body">
-            <div class="staff-report-row">
-              <span>Clock in</span>
-              <span>${staff.first_clock_in ? formatTime(staff.first_clock_in) : '--'}</span>
-            </div>
-            <div class="staff-report-row">
-              <span>Clock out</span>
-              <span>${staff.last_clock_out ? formatTime(staff.last_clock_out) : '--'}</span>
-            </div>
             <div class="staff-report-row">
               <span>Total time</span>
               <span>${formatMinutesToDuration(staff.total_minutes || 0)}</span>
@@ -2379,6 +2592,8 @@
     DOM.adminContent.innerHTML = `
       <div class="reports-layout">
         <section class="reports-left">
+          ${renderDateNavCard(date)}
+
           <div class="reports-timer-grid">
             <div class="reports-timer-card">
               <div class="reports-timer-label">Current Day Duration</div>
@@ -2528,34 +2743,53 @@
       });
     });
 
-    document.getElementById('reports-today')?.addEventListener('click', () => {
-      reportsSelectedDate = getLocalDateString();
-      reportsFollowingToday = true;
-      renderAdminReports();
-    });
+    wireDateNavHandlers(renderAdminReports);
 
-    document.querySelectorAll('.reports-date-pill').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const range = btn.dataset.range;
-        if (range === 'prev') {
-          reportsSelectedDate = addDays(reportsSelectedDate, -1);
-        } else if (range === 'next') {
-          reportsSelectedDate = addDays(reportsSelectedDate, 1);
-        } else {
-          reportsSelectedDate = getLocalDateString();
+    // Long-press a staff name in the report to fix a forgotten clock-out (or any wrong time)
+    document.querySelectorAll('.staff-report-name').forEach(nameEl => {
+      let pressTimer = null;
+      let pressTriggered = false;
+      const supportsPointer = typeof window.PointerEvent !== 'undefined';
+
+      const clearPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
         }
-        reportsFollowingToday = reportsSelectedDate === getLocalDateString();
-        renderAdminReports();
+      };
+
+      const startPress = () => {
+        pressTriggered = false;
+        clearPress();
+        pressTimer = setTimeout(() => {
+          pressTriggered = true;
+          openModal('editStaffTimeLogs', {
+            staffId: parseInt(nameEl.dataset.staffId),
+            staffName: nameEl.dataset.staffName,
+            date
+          });
+        }, 600);
+      };
+
+      if (supportsPointer) {
+        nameEl.addEventListener('pointerdown', startPress);
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt => nameEl.addEventListener(evt, clearPress));
+      } else {
+        nameEl.addEventListener('mousedown', startPress);
+        nameEl.addEventListener('touchstart', startPress, { passive: true });
+        ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(evt => nameEl.addEventListener(evt, clearPress));
+      }
+
+      // Block the native <summary> toggle when this press was actually the long-press,
+      // so opening the edit modal doesn't also expand/collapse the card underneath it.
+      nameEl.addEventListener('click', (e) => {
+        if (pressTriggered) {
+          e.preventDefault();
+          e.stopPropagation();
+          pressTriggered = false;
+        }
       });
     });
-    document.getElementById('reports-date-input')?.addEventListener('change', (e) => {
-      if (e.target.value) {
-        reportsSelectedDate = e.target.value;
-        reportsFollowingToday = reportsSelectedDate === getLocalDateString();
-        renderAdminReports();
-      }
-    });
-
 
     document.getElementById('reports-export-csv')?.addEventListener('click', async () => {
       const result = await window.api.reports.exportStaffCsv(reportsSelectedDate);
@@ -2578,9 +2812,11 @@
   }
 
   async function renderAdminReservations() {
+    if (reportsFollowingToday && reportsSelectedDate !== getLocalDateString()) {
+      reportsSelectedDate = getLocalDateString();
+    }
     const date = reportsSelectedDate;
-    const isTodaySelected = reportsSelectedDate === getLocalDateString();
-    
+
     const reservationsResult = await window.api.reports.reservationsByDate(date);
     const reservations = reservationsResult.success ? reservationsResult.data : [];
 
@@ -2602,18 +2838,7 @@
       `).join('');
 
     DOM.adminContent.innerHTML = `
-      <div class="admin-card reports-calendar-card">
-        <h3 class="admin-card-title">Select Date</h3>
-        <div class="reports-date-pills">
-          <button class="reports-date-pill" data-range="prev">Prev Day</button>
-          <button class="reports-date-pill ${isTodaySelected ? 'active' : ''}" data-range="today" id="today-date-btn">Today</button>
-          <button class="reports-date-pill" data-range="next">Next Day</button>
-        </div>
-        <div class="reports-date-display">
-          <button class="btn btn-outline" id="select-date-btn">${formatDateDisplay(date)}</button>
-        </div>
-        <input type="date" id="hidden-date-input" style="display: none;" value="${date}">
-      </div>
+      ${renderDateNavCard(date)}
 
       <div class="admin-card reports-reservations-card">
         <div class="admin-card-header">
@@ -2626,38 +2851,7 @@
       </div>
     `;
 
-    document.querySelectorAll('.reports-date-pill').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const range = btn.dataset.range;
-        if (range === 'prev') {
-          const d = new Date(reportsSelectedDate);
-          d.setDate(d.getDate() - 1);
-          reportsSelectedDate = getLocalDateString(d);
-        } else if (range === 'next') {
-          const d = new Date(reportsSelectedDate);
-          d.setDate(d.getDate() + 1);
-          reportsSelectedDate = getLocalDateString(d);
-        } else {
-          reportsSelectedDate = getLocalDateString();
-        }
-        renderAdminReservations();
-      });
-    });
-
-    // Date selection button - opens hidden date input
-    document.getElementById('select-date-btn')?.addEventListener('click', () => {
-      const hiddenInput = document.getElementById('hidden-date-input');
-      if (hiddenInput) {
-        hiddenInput.showPicker();
-      }
-    });
-
-    document.getElementById('hidden-date-input')?.addEventListener('change', (e) => {
-      if (e.target.value) {
-        reportsSelectedDate = e.target.value;
-        renderAdminReservations();
-      }
-    });
+    wireDateNavHandlers(renderAdminReservations);
 
     document.getElementById('add-reservation-btn')?.addEventListener('click', () => {
       openModal('addReservation', { date: reportsSelectedDate });

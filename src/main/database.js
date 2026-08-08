@@ -609,6 +609,50 @@ class Database {
     return this.get('SELECT * FROM staff_time_logs WHERE id = ?', [logId]);
   }
 
+  // Staff ids with an open (still clocked in) log for the given date - used to highlight/
+  // reorder staff on the main screen without needing a per-staff round trip.
+  getClockedInStaffIds(date) {
+    const rows = this.all(
+      `SELECT DISTINCT staff_id FROM staff_time_logs WHERE date(clock_in) = date(?) AND clock_out IS NULL`,
+      [date]
+    );
+    return rows.map(row => row.staff_id);
+  }
+
+  // Admin time-log editing (fixes a forgotten clock-out, or any wrong time)
+  getStaffTimeLogsForDate(staffId, date) {
+    return this.all(
+      'SELECT * FROM staff_time_logs WHERE staff_id = ? AND date(clock_in) = date(?) ORDER BY clock_in',
+      [staffId, date]
+    );
+  }
+
+  createStaffTimeLog(staffId, { clock_in, clock_out }) {
+    const result = this.run(
+      'INSERT INTO staff_time_logs (staff_id, clock_in, clock_out) VALUES (?, ?, ?)',
+      [staffId, clock_in, clock_out || null]
+    );
+    this.save();
+    this.logAction('staff_time_log_created', { staff_id: staffId, clock_in, clock_out: clock_out || null });
+    return this.get('SELECT * FROM staff_time_logs WHERE id = ?', [result.lastInsertRowid]);
+  }
+
+  updateStaffTimeLog(logId, { clock_in, clock_out }) {
+    this.run(
+      'UPDATE staff_time_logs SET clock_in = ?, clock_out = ? WHERE id = ?',
+      [clock_in, clock_out || null, logId]
+    );
+    this.save();
+    this.logAction('staff_time_log_edited', { log_id: logId, clock_in, clock_out: clock_out || null });
+    return this.get('SELECT * FROM staff_time_logs WHERE id = ?', [logId]);
+  }
+
+  deleteStaffTimeLog(logId) {
+    this.run('DELETE FROM staff_time_logs WHERE id = ?', [logId]);
+    this.save();
+    this.logAction('staff_time_log_deleted', { log_id: logId });
+  }
+
   // Bill methods
   createBill(data) {
     const billResult = this.run(`

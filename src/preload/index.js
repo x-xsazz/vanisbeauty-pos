@@ -41,7 +41,12 @@ contextBridge.exposeInMainWorld('api', {
     selectPhoto: () => ipcRenderer.invoke('staff:selectPhoto'),
     clockStatus: (staffId, date) => ipcRenderer.invoke('staff:clockStatus', staffId, date),
     clockIn: (staffId) => ipcRenderer.invoke('staff:clockIn', staffId),
-    clockOut: (logId) => ipcRenderer.invoke('staff:clockOut', logId)
+    clockOut: (logId) => ipcRenderer.invoke('staff:clockOut', logId),
+    getClockedInIds: (date) => ipcRenderer.invoke('staff:getClockedInIds', date),
+    getTimeLogsForDate: (staffId, date) => ipcRenderer.invoke('staff:getTimeLogsForDate', staffId, date),
+    createTimeLog: (staffId, data) => ipcRenderer.invoke('staff:createTimeLog', staffId, data),
+    updateTimeLog: (logId, data) => ipcRenderer.invoke('staff:updateTimeLog', logId, data),
+    deleteTimeLog: (logId) => ipcRenderer.invoke('staff:deleteTimeLog', logId)
   },
 
   // Bills

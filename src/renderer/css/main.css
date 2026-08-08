@@ -444,6 +444,27 @@ input, textarea {
   color: var(--bg-primary);
 }
 
+.staff-picture-box.clocked-in {
+  border-color: #00E676;
+  box-shadow: 0 0 16px rgba(0, 230, 118, 0.35);
+}
+
+.staff-picture-box.clocked-in .staff-picture-placeholder {
+  border-color: #00E676;
+}
+
+.staff-clocked-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #0B0E11;
+  background: var(--gradient-success);
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
 .staff-picture-placeholder {
   width: 64px;
   height: 64px;
@@ -1885,6 +1906,15 @@ input, textarea {
   border-bottom: none;
 }
 
+.admin-table tbody tr {
+  animation: fadeIn var(--transition-fast) both;
+  transition: background-color var(--transition-fast);
+}
+
+.admin-table tbody tr:hover {
+  background: var(--bg-tertiary);
+}
+
 .admin-table-actions {
   display: flex;
   gap: var(--space-sm);
@@ -1905,6 +1935,7 @@ input, textarea {
   box-shadow: var(--shadow-sm);
   width: 100%;
   max-width: 100%;
+  animation: fadeIn var(--transition-normal) both;
 }
 
 .admin-card-header {
@@ -2443,6 +2474,7 @@ input, textarea {
   padding: var(--space-md);
   border: var(--border);
   background: var(--bg-black);
+  animation: fadeIn var(--transition-fast) both;
 }
 
 .reports-job-time {
@@ -2475,6 +2507,7 @@ input, textarea {
   display: block;
   width: 100%;
   min-height: 100%;
+  animation: fadeIn var(--transition-normal) both;
 }
 
 .reports-left {
@@ -2613,6 +2646,14 @@ input, textarea {
 .staff-report-card {
   border: var(--border);
   background: var(--bg-black);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  animation: fadeIn var(--transition-fast) both;
+  transition: box-shadow var(--transition-fast);
+}
+
+.staff-report-card:hover {
+  box-shadow: var(--shadow-sm);
 }
 
 .staff-report-card summary {
@@ -2648,6 +2689,67 @@ input, textarea {
   font-family: var(--font-mono);
   font-size: 16px;
   color: var(--accent);
+}
+
+.staff-report-name {
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  transition: all var(--transition-fast);
+}
+
+.staff-report-name:active {
+  opacity: 0.6;
+  border-bottom-color: currentColor;
+}
+
+.staff-report-times {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--gray-400);
+  text-transform: none;
+}
+
+.staff-report-clock {
+  white-space: nowrap;
+}
+
+/* Time log editor (long-press a staff name in Reports) */
+.time-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.time-log-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: var(--space-sm);
+  align-items: end;
+  padding: var(--space-sm);
+  border: var(--border-normal);
+  border-radius: var(--radius-md);
+}
+
+.time-log-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.time-log-field label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.time-log-actions {
+  display: flex;
+  gap: var(--space-sm);
 }
 
 .staff-report-body {

@@ -220,6 +220,47 @@ function registerIpcHandlers(ipcMain, db, mainWindow, dialog) {
     }
   });
 
+  ipcMain.handle('staff:getClockedInIds', (event, date) => {
+    try {
+      return { success: true, data: db.getClockedInStaffIds(date) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('staff:getTimeLogsForDate', (event, staffId, date) => {
+    try {
+      return { success: true, data: db.getStaffTimeLogsForDate(staffId, date) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('staff:createTimeLog', (event, staffId, data) => {
+    try {
+      return { success: true, data: db.createStaffTimeLog(staffId, data) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('staff:updateTimeLog', (event, logId, data) => {
+    try {
+      return { success: true, data: db.updateStaffTimeLog(logId, data) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('staff:deleteTimeLog', (event, logId) => {
+    try {
+      db.deleteStaffTimeLog(logId);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('staff:selectPhoto', async () => {
     try {
       const result = await dialog.showOpenDialog({
