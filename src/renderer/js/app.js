@@ -699,6 +699,16 @@
     store.closeModal();
   }
 
+  function servicePresetRowHtml(preset = {}) {
+    return `
+      <div class="service-preset-row">
+        <input type="text" class="form-input preset-label" placeholder="Label (optional)" value="${preset.label || ''}">
+        <input type="number" class="form-input preset-price" placeholder="Price" min="0" step="0.01" value="${preset.price ?? ''}">
+        <button class="preset-remove-btn" type="button" title="Remove preset">&#x2715;</button>
+      </div>
+    `;
+  }
+
   function getModalContent(type, data) {
     switch (type) {
       case 'customerLookup':
@@ -1125,6 +1135,12 @@
                 <span>Display on Home screen</span>
               </label>
             </div>
+            <div class="form-group">
+              <label class="form-checkbox">
+                <input type="checkbox" id="service-dynamic-popup">
+                <span>Dynamic popup (preset prices + numpad) when tapped</span>
+              </label>
+            </div>
             <div class="modal-footer">
               <button class="btn btn-outline" id="cancel-add-service">Cancel</button>
               <button class="btn btn-primary" id="save-add-service">Add Service</button>
@@ -1138,6 +1154,7 @@
               const price = parseFloat(document.getElementById('service-price').value);
               const category = document.getElementById('service-category').value;
               const show_on_home = document.getElementById('service-show-home').checked ? 1 : 0;
+              const is_dynamic_popup = document.getElementById('service-dynamic-popup').checked ? 1 : 0;
 
               if (!name) {
                 showToast('Service name is required', 'error');
@@ -1148,12 +1165,16 @@
                 return;
               }
 
-              const result = await window.api.services.create({ name, price, category, show_on_home, active: 1 });
+              const result = await window.api.services.create({ name, price, category, show_on_home, is_dynamic_popup, active: 1 });
               if (result.success) {
                 closeModal();
                 showToast('Service added', 'success');
                 await refreshServices();
                 renderAdminSection('services');
+                // If flagged dynamic, jump straight into editing so presets can be added now
+                if (is_dynamic_popup && result.data?.id) {
+                  openModal('editService', { service: result.data });
+                }
               } else {
                 showToast(result.error || 'Failed to add service', 'error');
               }
@@ -1193,6 +1214,17 @@
                 <span>Display on Home screen</span>
               </label>
             </div>
+            <div class="form-group">
+              <label class="form-checkbox">
+                <input type="checkbox" id="service-dynamic-popup" ${data.service.is_dynamic_popup ? 'checked' : ''}>
+                <span>Dynamic popup (preset prices + numpad) when tapped</span>
+              </label>
+            </div>
+            <div class="form-group ${data.service.is_dynamic_popup ? '' : 'hidden'}" id="service-presets-group">
+              <label class="form-label">Preset Prices</label>
+              <div class="service-presets-list" id="service-presets-list"></div>
+              <button class="btn btn-outline" id="add-preset-row" type="button">+ Add Preset</button>
+            </div>
             <div class="modal-footer">
               <button class="btn btn-outline" id="cancel-edit-service">Cancel</button>
               <button class="btn btn-primary" id="save-edit-service">Save Changes</button>
@@ -1201,19 +1233,58 @@
           onMount: () => {
             document.getElementById('cancel-edit-service').addEventListener('click', closeModal);
 
+            const dynamicPopupCheckbox = document.getElementById('service-dynamic-popup');
+            const presetsGroup = document.getElementById('service-presets-group');
+            const presetsList = document.getElementById('service-presets-list');
+
+            dynamicPopupCheckbox.addEventListener('change', () => {
+              presetsGroup.classList.toggle('hidden', !dynamicPopupCheckbox.checked);
+            });
+
+            document.getElementById('add-preset-row').addEventListener('click', () => {
+              presetsList.insertAdjacentHTML('beforeend', servicePresetRowHtml());
+            });
+
+            presetsList.addEventListener('click', (e) => {
+              const btn = e.target.closest('.preset-remove-btn');
+              if (btn) {
+                btn.closest('.service-preset-row').remove();
+              }
+            });
+
+            // Load existing presets (fire-and-forget; doesn't block modal display)
+            (async () => {
+              const presetsResult = await window.api.services.getPricePresets(data.service.id);
+              if (presetsResult.success && presetsResult.data.length > 0) {
+                presetsList.innerHTML = presetsResult.data.map(p => servicePresetRowHtml(p)).join('');
+              }
+            })();
+
             document.getElementById('save-edit-service').addEventListener('click', async () => {
               const name = document.getElementById('service-name').value.trim();
               const price = parseFloat(document.getElementById('service-price').value);
               const category = document.getElementById('service-category').value;
               const show_on_home = document.getElementById('service-show-home').checked ? 1 : 0;
+              const is_dynamic_popup = dynamicPopupCheckbox.checked ? 1 : 0;
 
               if (!name || isNaN(price) || price < 0) {
                 showToast('Please fill all required fields', 'error');
                 return;
               }
 
-              const result = await window.api.services.update(data.service.id, { name, price, category, show_on_home });
+              const result = await window.api.services.update(data.service.id, { name, price, category, show_on_home, is_dynamic_popup });
               if (result.success) {
+                if (is_dynamic_popup) {
+                  const presets = Array.from(presetsList.querySelectorAll('.service-preset-row'))
+                    .map((row, index) => ({
+                      label: row.querySelector('.preset-label').value.trim(),
+                      price: parseFloat(row.querySelector('.preset-price').value),
+                      display_order: index
+                    }))
+                    .filter(p => !isNaN(p.price) && p.price >= 0);
+
+                  await window.api.services.setPricePresets(data.service.id, presets);
+                }
                 closeModal();
                 showToast('Service updated', 'success');
                 await refreshServices();
@@ -1677,14 +1748,16 @@
               <th>Price</th>
               <th>Status</th>
               <th>Home</th>
+              <th>Dynamic</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             ${services.length === 0 ? `
-              <tr><td colspan="6" class="text-center text-muted">No services found</td></tr>
+              <tr><td colspan="7" class="text-center text-muted">No services found</td></tr>
             ` : services.map(s => {
               const isHome = Number(s.show_on_home) === 1;
+              const isDynamic = Number(s.is_dynamic_popup) === 1;
               return `
               <tr>
                 <td>${s.name}</td>
@@ -1694,6 +1767,11 @@
                 <td>
                   <button class="btn btn-outline" data-toggle-home="${s.id}" data-home="${isHome ? 1 : 0}">
                     ${isHome ? 'On' : 'Off'}
+                  </button>
+                </td>
+                <td>
+                  <button class="btn btn-outline" data-toggle-dynamic="${s.id}" data-dynamic="${isDynamic ? 1 : 0}">
+                    ${isDynamic ? 'On' : 'Off'}
                   </button>
                 </td>
                 <td class="admin-table-actions">
@@ -1751,6 +1829,27 @@
         await refreshServices();
         renderAdminServices();
         showToast(`Home display ${updatedValue === 1 ? 'enabled' : 'disabled'}`, 'success');
+      });
+    });
+
+    document.querySelectorAll('[data-toggle-dynamic]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = parseInt(btn.dataset.toggleDynamic);
+        const isDynamic = Number(btn.dataset.dynamic) === 1;
+        const nextValue = isDynamic ? 0 : 1;
+        const result = await window.api.services.update(id, { is_dynamic_popup: nextValue });
+        if (!result.success) {
+          showToast(result.error || 'Failed to update dynamic popup', 'error');
+          return;
+        }
+
+        const updatedValue = Number(result.data?.is_dynamic_popup ?? nextValue);
+        btn.dataset.dynamic = updatedValue;
+        btn.textContent = updatedValue === 1 ? 'On' : 'Off';
+
+        await refreshServices();
+        renderAdminServices();
+        showToast(`Dynamic popup ${updatedValue === 1 ? 'enabled' : 'disabled'}`, 'success');
       });
     });
   }

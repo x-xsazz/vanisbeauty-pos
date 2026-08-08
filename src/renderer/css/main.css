@@ -1526,6 +1526,39 @@ input, textarea {
   height: 18px;
 }
 
+/* Service price presets editor (admin) */
+.service-presets-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.service-preset-row {
+  display: grid;
+  grid-template-columns: 1fr 120px auto;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.preset-remove-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 14px;
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.preset-remove-btn:hover {
+  border-color: var(--danger, #e5484d);
+  color: var(--danger, #e5484d);
+}
+
 /* Customer search results */
 .customer-search-results {
   margin-top: var(--space-md);
