@@ -71,9 +71,23 @@ class Database {
         price REAL NOT NULL DEFAULT 0,
         category TEXT NOT NULL DEFAULT 'General',
         show_on_home INTEGER NOT NULL DEFAULT 0,
+        is_dynamic_popup INTEGER NOT NULL DEFAULT 0,
         active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT DEFAULT (datetime('now', 'localtime')),
         updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+      );
+    `);
+
+    this.db.run(`
+      -- Admin-configured preset price buttons for services flagged is_dynamic_popup.
+      -- Variable-length list per service; ordered by display_order.
+      CREATE TABLE IF NOT EXISTS service_price_presets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_id INTEGER NOT NULL,
+        label TEXT,
+        price REAL NOT NULL,
+        display_order INTEGER DEFAULT 0,
+        FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
       );
     `);
 
@@ -198,8 +212,10 @@ class Database {
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_staff_time_logs_staff ON staff_time_logs(staff_id);`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_staff_time_logs_clock_in ON staff_time_logs(clock_in);`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_reservations_start_time ON reservations(start_time);`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_service_price_presets_service ON service_price_presets(service_id);`);
 
     this.ensureColumn('services', 'show_on_home', 'INTEGER NOT NULL DEFAULT 0');
+    this.ensureColumn('services', 'is_dynamic_popup', 'INTEGER NOT NULL DEFAULT 0');
     this.ensureColumn('staff', 'photo_path', 'TEXT');
 
     this.run("UPDATE categories SET display_order = 7 WHERE name = 'Other' AND display_order = 99");
@@ -304,6 +320,7 @@ class Database {
   // Service methods
   getServices(activeOnly = true) {
     this.ensureColumn('services', 'show_on_home', 'INTEGER NOT NULL DEFAULT 0');
+    this.ensureColumn('services', 'is_dynamic_popup', 'INTEGER NOT NULL DEFAULT 0');
     const query = activeOnly
       ? 'SELECT * FROM services WHERE active = 1 ORDER BY category, name'
       : 'SELECT * FROM services ORDER BY category, name';
@@ -312,19 +329,22 @@ class Database {
 
   getServicesByCategory(category) {
     this.ensureColumn('services', 'show_on_home', 'INTEGER NOT NULL DEFAULT 0');
+    this.ensureColumn('services', 'is_dynamic_popup', 'INTEGER NOT NULL DEFAULT 0');
     return this.all('SELECT * FROM services WHERE category = ? AND active = 1 ORDER BY name', [category]);
   }
 
   getService(id) {
     this.ensureColumn('services', 'show_on_home', 'INTEGER NOT NULL DEFAULT 0');
+    this.ensureColumn('services', 'is_dynamic_popup', 'INTEGER NOT NULL DEFAULT 0');
     return this.get('SELECT * FROM services WHERE id = ?', [id]);
   }
 
   createService(data) {
     this.ensureColumn('services', 'show_on_home', 'INTEGER NOT NULL DEFAULT 0');
+    this.ensureColumn('services', 'is_dynamic_popup', 'INTEGER NOT NULL DEFAULT 0');
     const result = this.run(
-      'INSERT INTO services (name, price, category, show_on_home, active) VALUES (?, ?, ?, ?, ?)',
-      [data.name, data.price, data.category, data.show_on_home ?? 0, data.active ?? 1]
+      'INSERT INTO services (name, price, category, show_on_home, is_dynamic_popup, active) VALUES (?, ?, ?, ?, ?, ?)',
+      [data.name, data.price, data.category, data.show_on_home ?? 0, data.is_dynamic_popup ?? 0, data.active ?? 1]
     );
     this.save();
     return { id: result.lastInsertRowid, ...data };
@@ -332,10 +352,12 @@ class Database {
 
   updateService(id, data) {
     this.ensureColumn('services', 'show_on_home', 'INTEGER NOT NULL DEFAULT 0');
+    this.ensureColumn('services', 'is_dynamic_popup', 'INTEGER NOT NULL DEFAULT 0');
     const name = data.name === undefined ? null : data.name;
     const price = data.price === undefined ? null : data.price;
     const category = data.category === undefined ? null : data.category;
     const showOnHome = data.show_on_home === undefined ? null : data.show_on_home;
+    const isDynamicPopup = data.is_dynamic_popup === undefined ? null : data.is_dynamic_popup;
     const active = data.active === undefined ? null : data.active;
     this.run(`
       UPDATE services SET
@@ -343,10 +365,11 @@ class Database {
         price = COALESCE(?, price),
         category = COALESCE(?, category),
         show_on_home = COALESCE(?, show_on_home),
+        is_dynamic_popup = COALESCE(?, is_dynamic_popup),
         active = COALESCE(?, active),
         updated_at = datetime('now', 'localtime')
       WHERE id = ?
-    `, [name, price, category, showOnHome, active, id]);
+    `, [name, price, category, showOnHome, isDynamicPopup, active, id]);
     this.save();
     return this.getService(id);
   }
@@ -354,6 +377,28 @@ class Database {
   deleteService(id) {
     this.run('UPDATE services SET active = 0 WHERE id = ?', [id]);
     this.save();
+  }
+
+  // Price presets for dynamic-popup services (variable-length list per service)
+  getServicePricePresets(serviceId) {
+    return this.all(
+      'SELECT * FROM service_price_presets WHERE service_id = ? ORDER BY display_order, id',
+      [serviceId]
+    );
+  }
+
+  // Bulk-replace the preset list for a service (matches the admin editor's add/remove/reorder UI:
+  // it saves the whole list at once rather than issuing granular create/update/delete calls).
+  setServicePricePresets(serviceId, presets = []) {
+    this.run('DELETE FROM service_price_presets WHERE service_id = ?', [serviceId]);
+    presets.forEach((preset, index) => {
+      this.run(
+        'INSERT INTO service_price_presets (service_id, label, price, display_order) VALUES (?, ?, ?, ?)',
+        [serviceId, preset.label || null, preset.price, preset.display_order ?? index]
+      );
+    });
+    this.save();
+    return this.getServicePricePresets(serviceId);
   }
 
   // Category methods

@@ -9,7 +9,9 @@ contextBridge.exposeInMainWorld('api', {
     get: (id) => ipcRenderer.invoke('services:get', id),
     create: (data) => ipcRenderer.invoke('services:create', data),
     update: (id, data) => ipcRenderer.invoke('services:update', id, data),
-    delete: (id) => ipcRenderer.invoke('services:delete', id)
+    delete: (id) => ipcRenderer.invoke('services:delete', id),
+    getPricePresets: (serviceId) => ipcRenderer.invoke('services:getPricePresets', serviceId),
+    setPricePresets: (serviceId, presets) => ipcRenderer.invoke('services:setPricePresets', serviceId, presets)
   },
 
   // Categories

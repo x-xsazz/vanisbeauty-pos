@@ -61,6 +61,23 @@ function registerIpcHandlers(ipcMain, db, mainWindow, dialog) {
     }
   });
 
+  // Service price presets (for is_dynamic_popup services)
+  ipcMain.handle('services:getPricePresets', (event, serviceId) => {
+    try {
+      return { success: true, data: db.getServicePricePresets(serviceId) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('services:setPricePresets', (event, serviceId, presets) => {
+    try {
+      return { success: true, data: db.setServicePricePresets(serviceId, presets) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
   // Categories
   ipcMain.handle('categories:getAll', (event, activeOnly = true) => {
     try {
