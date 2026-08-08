@@ -100,8 +100,14 @@ class StateManager {
 
   // Bill management methods
   addItemToBill(service, staff = null) {
+    // Match on price + name too (not just service_id/staff_id): dynamic-popup services can be
+    // added multiple times at different prices/presets, and those must stay separate line items
+    // rather than merging into whichever price was added first.
     const existingIndex = this.state.currentBill.items.findIndex(
-      item => item.service_id === service.id && item.staff_id === (staff?.id || null)
+      item => item.service_id === service.id
+        && item.staff_id === (staff?.id || null)
+        && item.price === service.price
+        && item.service_name === service.name
     );
 
     let newItems;

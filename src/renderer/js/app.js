@@ -428,14 +428,37 @@
 
         const serviceId = parseInt(btn.dataset.serviceId);
         const service = services.find(s => s.id === serviceId);
-        if (service) {
-          store.addItemToBill(service, selectedStaff);
-          showToast(`Added ${service.name}`, 'success');
+        if (!service) return;
+
+        if (Number(service.is_dynamic_popup) === 1) {
+          openModal('dynamicServicePopup', { service });
+          return;
         }
+
+        store.addItemToBill(service, selectedStaff);
+        showToast(`Added ${service.name}`, 'success');
       });
     });
 
     renderServicesPagination(currentServicesPage, totalPages);
+  }
+
+  // Adds a dynamic-popup item (custom numpad amount or an admin preset) to the bill.
+  // service_name gets a preset label suffix (if any) so it's distinguishable on the bill/receipt.
+  function addDynamicItemToBill(service, price, label) {
+    const selectedStaff = store.getState().selectedStaff;
+    if (!selectedStaff) {
+      showToast('Please select a staff member first', 'error');
+      return;
+    }
+
+    const itemService = {
+      ...service,
+      price,
+      name: label ? `${service.name} (${label})` : service.name
+    };
+    store.addItemToBill(itemService, selectedStaff);
+    showToast(`Added ${itemService.name}`, 'success');
   }
 
   function renderServicesPagination(page, totalPages) {
@@ -1105,6 +1128,103 @@
             });
           }
         };
+
+      case 'dynamicServicePopup': {
+        const service = data.service;
+        return {
+          title: service.name,
+          body: `
+            <div class="dynamic-popup">
+              <div class="dynamic-popup-presets" id="dynamic-popup-presets">
+                <p class="text-muted">Loading presets…</p>
+              </div>
+              <div class="dynamic-popup-display" id="dynamic-popup-display">${formatCurrency(0)}</div>
+              <div class="numpad-grid" id="dynamic-popup-numpad">
+                <button class="numpad-key" type="button" data-key="1">1</button>
+                <button class="numpad-key" type="button" data-key="2">2</button>
+                <button class="numpad-key" type="button" data-key="3">3</button>
+                <button class="numpad-key" type="button" data-key="4">4</button>
+                <button class="numpad-key" type="button" data-key="5">5</button>
+                <button class="numpad-key" type="button" data-key="6">6</button>
+                <button class="numpad-key" type="button" data-key="7">7</button>
+                <button class="numpad-key" type="button" data-key="8">8</button>
+                <button class="numpad-key" type="button" data-key="9">9</button>
+                <button class="numpad-key" type="button" data-key=".">.</button>
+                <button class="numpad-key" type="button" data-key="0">0</button>
+                <button class="numpad-key" type="button" data-key="back">&#9003;</button>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-outline" id="dynamic-popup-clear" type="button">Clear</button>
+                <button class="btn btn-primary" id="dynamic-popup-add" type="button">Add to Bill</button>
+              </div>
+            </div>
+          `,
+          onMount: () => {
+            let typedAmount = '';
+            const displayEl = document.getElementById('dynamic-popup-display');
+            const presetsContainer = document.getElementById('dynamic-popup-presets');
+
+            const updateDisplay = () => {
+              displayEl.textContent = formatCurrency(parseFloat(typedAmount) || 0);
+            };
+
+            document.getElementById('dynamic-popup-numpad').addEventListener('click', (e) => {
+              const btn = e.target.closest('.numpad-key');
+              if (!btn) return;
+              const key = btn.dataset.key;
+              if (key === 'back') {
+                typedAmount = typedAmount.slice(0, -1);
+              } else if (key === '.') {
+                if (!typedAmount.includes('.')) typedAmount += '.';
+              } else {
+                typedAmount += key;
+              }
+              updateDisplay();
+            });
+
+            document.getElementById('dynamic-popup-clear').addEventListener('click', () => {
+              typedAmount = '';
+              updateDisplay();
+            });
+
+            document.getElementById('dynamic-popup-add').addEventListener('click', () => {
+              const price = parseFloat(typedAmount);
+              if (isNaN(price) || price <= 0) {
+                showToast('Enter a valid amount', 'error');
+                return;
+              }
+              addDynamicItemToBill(service, price, null);
+              closeModal();
+            });
+
+            // Load admin-configured presets (fire-and-forget; doesn't block modal display)
+            (async () => {
+              const result = await window.api.services.getPricePresets(service.id);
+              const presets = result.success ? result.data : [];
+
+              if (presets.length === 0) {
+                presetsContainer.innerHTML = `<p class="text-muted">No preset prices configured</p>`;
+                return;
+              }
+
+              presetsContainer.innerHTML = presets.map((p, index) => `
+                <button class="dynamic-preset-btn" type="button" data-preset-index="${index}">
+                  <span class="preset-btn-label">${p.label || formatCurrency(p.price)}</span>
+                  ${p.label ? `<span class="preset-btn-price">${formatCurrency(p.price)}</span>` : ''}
+                </button>
+              `).join('');
+
+              presetsContainer.querySelectorAll('.dynamic-preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                  const preset = presets[parseInt(btn.dataset.presetIndex)];
+                  addDynamicItemToBill(service, preset.price, preset.label || null);
+                  closeModal();
+                });
+              });
+            })();
+          }
+        };
+      }
 
       // Admin modals
       case 'addService':

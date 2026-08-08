@@ -1559,6 +1559,89 @@ input, textarea {
   color: var(--danger, #e5484d);
 }
 
+/* Dynamic service popup (main POS grid) */
+.dynamic-popup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.dynamic-popup-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+}
+
+.dynamic-preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: var(--space-md);
+  border: var(--border-normal);
+  border-radius: var(--radius-md);
+  background: var(--gradient-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dynamic-preset-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.dynamic-preset-btn:active {
+  transform: scale(0.97);
+}
+
+.preset-btn-label {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.preset-btn-price {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.dynamic-popup-display {
+  text-align: center;
+  font-size: 32px;
+  font-weight: 700;
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border: var(--border-normal);
+  border-radius: var(--radius-md);
+}
+
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+}
+
+.numpad-key {
+  padding: var(--space-lg);
+  font-size: 20px;
+  font-weight: 700;
+  border: var(--border-normal);
+  border-radius: var(--radius-md);
+  background: var(--gradient-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.numpad-key:hover {
+  background: var(--bg-secondary);
+}
+
+.numpad-key:active {
+  transform: scale(0.95);
+}
+
 /* Customer search results */
 .customer-search-results {
   margin-top: var(--space-md);
