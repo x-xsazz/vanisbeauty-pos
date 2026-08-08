@@ -15,6 +15,7 @@
     // Services Panel
     categoryNav: document.getElementById('category-nav'),
     servicesGrid: document.getElementById('services-grid'),
+    servicesPagination: document.getElementById('services-pagination'),
     logoBtn: document.getElementById('logo-btn'),
 
     // Staff (moved to center panel top)
@@ -77,6 +78,10 @@
   };
 
   let reportsTimerInterval = null;
+
+  // Main items grid pagination (fixed 4x4 = 16 tiles per page)
+  const SERVICES_PAGE_SIZE = 16;
+  let currentServicesPage = 0;
 
   // ============================================
   // INITIALIZATION
@@ -141,9 +146,23 @@
       if (e.target.classList.contains('category-btn-vertical')) {
         const category = e.target.dataset.category;
         store.setState({ selectedCategory: category });
+        currentServicesPage = 0;
         renderCategories();
         renderServices();
       }
+    });
+
+    // Items grid pagination (prev/next through the 4x4 pages)
+    DOM.servicesPagination.addEventListener('click', (e) => {
+      const btn = e.target.closest('.grid-page-btn');
+      if (!btn || btn.disabled) return;
+
+      if (btn.dataset.direction === 'prev') {
+        currentServicesPage = Math.max(0, currentServicesPage - 1);
+      } else {
+        currentServicesPage += 1;
+      }
+      renderServices();
     });
 
     // Clear bill
@@ -368,16 +387,25 @@
       filtered = filtered.filter(s => s.category === selectedCategory);
     }
 
+    // Fixed 4x4 grid = 16 tiles per page; clamp current page to what's available
+    const totalPages = Math.max(1, Math.ceil(filtered.length / SERVICES_PAGE_SIZE));
+    if (currentServicesPage >= totalPages) currentServicesPage = totalPages - 1;
+    if (currentServicesPage < 0) currentServicesPage = 0;
+
     if (filtered.length === 0) {
       DOM.servicesGrid.innerHTML = `
-        <div class="empty-bill" style="grid-column: span 2;">
+        <div class="empty-bill" style="grid-column: span 4;">
           <p>No services found</p>
         </div>
       `;
+      renderServicesPagination(0, 1);
       return;
     }
 
-    DOM.servicesGrid.innerHTML = filtered.map(service => `
+    const pageStart = currentServicesPage * SERVICES_PAGE_SIZE;
+    const pageItems = filtered.slice(pageStart, pageStart + SERVICES_PAGE_SIZE);
+
+    DOM.servicesGrid.innerHTML = pageItems.map(service => `
       <button class="service-btn" data-service-id="${service.id}">
         <span class="service-name">${service.name}</span>
         <span class="service-price">${formatCurrency(service.price)}</span>
@@ -403,6 +431,23 @@
         }
       });
     });
+
+    renderServicesPagination(currentServicesPage, totalPages);
+  }
+
+  function renderServicesPagination(page, totalPages) {
+    if (totalPages <= 1) {
+      DOM.servicesPagination.innerHTML = '';
+      DOM.servicesPagination.classList.add('hidden');
+      return;
+    }
+
+    DOM.servicesPagination.classList.remove('hidden');
+    DOM.servicesPagination.innerHTML = `
+      <button class="grid-page-btn" data-direction="prev" ${page === 0 ? 'disabled' : ''}>&#8249; Prev</button>
+      <span class="grid-page-indicator">${page + 1} / ${totalPages}</span>
+      <button class="grid-page-btn" data-direction="next" ${page === totalPages - 1 ? 'disabled' : ''}>Next &#8250;</button>
+    `;
   }
 
   function renderStaff() {
@@ -2771,6 +2816,7 @@
 
   function goHome() {
     store.setState({ selectedCategory: 'HOME' });
+    currentServicesPage = 0;
     renderCategories();
     renderServices();
   }
