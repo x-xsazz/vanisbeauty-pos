@@ -2540,6 +2540,11 @@
       return `<button class="reports-category-btn ${index === 0 ? 'active' : ''}" data-category="${name}" style="background: ${color}; color: ${textColor};">${name}</button>`;
     }).join('');
 
+    const staffNamesInJobs = ['All', ...new Set(jobs.map(job => job.staff_name || 'No staff'))];
+    const staffButtons = staffNamesInJobs.map((name, index) => `
+      <button class="reports-staff-btn ${index === 0 ? 'active' : ''}" data-staff="${name}">${name}</button>
+    `).join('');
+
     const staffCards = staffReports.map(staff => {
       const payments = staff.payments || [];
       const paymentsMarkup = payments.length === 0
@@ -2561,14 +2566,11 @@
             <div class="staff-report-times">
               <span class="staff-report-clock">In ${staff.first_clock_in ? formatTime(staff.first_clock_in) : '--'}</span>
               <span class="staff-report-clock">Out ${staff.last_clock_out ? formatTime(staff.last_clock_out) : '--'}</span>
+              <span class="staff-report-clock staff-report-worked">Worked ${formatMinutesToDuration(staff.total_minutes || 0)}</span>
             </div>
             <div class="staff-report-total">${formatCurrency(staff.total_sales || 0)}</div>
           </summary>
           <div class="staff-report-body">
-            <div class="staff-report-row">
-              <span>Total time</span>
-              <span>${formatMinutesToDuration(staff.total_minutes || 0)}</span>
-            </div>
             <div class="staff-report-section">Payment received</div>
             ${paymentsMarkup}
           </div>
@@ -2607,6 +2609,10 @@
 
           <div class="reports-category-bar" id="reports-category-bar">
             ${categoryButtons}
+          </div>
+
+          <div class="reports-staff-bar" id="reports-staff-bar">
+            ${staffButtons}
           </div>
 
           <div class="admin-card">
@@ -2699,10 +2705,12 @@
 
     const jobListEl = document.getElementById('reports-job-list');
     const jobCountEl = document.getElementById('reports-job-count');
-    const renderJobs = (categoryFilter) => {
-      const filtered = categoryFilter === 'All'
-        ? jobs
-        : jobs.filter(job => (job.category || 'Uncategorized') === categoryFilter);
+    const renderJobs = (categoryFilter, staffFilter) => {
+      const filtered = jobs.filter(job => {
+        if (categoryFilter !== 'All' && (job.category || 'Uncategorized') !== categoryFilter) return false;
+        if (staffFilter !== 'All' && (job.staff_name || 'No staff') !== staffFilter) return false;
+        return true;
+      });
 
       if (jobCountEl) {
         jobCountEl.textContent = filtered.length;
@@ -2733,13 +2741,27 @@
       `).join('');
     };
 
-    renderJobs('All');
+    let activeCategoryFilter = 'All';
+    let activeStaffFilter = 'All';
+    const applyJobFilters = () => renderJobs(activeCategoryFilter, activeStaffFilter);
+
+    applyJobFilters();
 
     document.querySelectorAll('.reports-category-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.reports-category-btn').forEach(el => el.classList.remove('active'));
         btn.classList.add('active');
-        renderJobs(btn.dataset.category);
+        activeCategoryFilter = btn.dataset.category;
+        applyJobFilters();
+      });
+    });
+
+    document.querySelectorAll('.reports-staff-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.reports-staff-btn').forEach(el => el.classList.remove('active'));
+        btn.classList.add('active');
+        activeStaffFilter = btn.dataset.staff;
+        applyJobFilters();
       });
     });
 
