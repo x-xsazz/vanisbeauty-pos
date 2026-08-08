@@ -374,9 +374,18 @@ class Database {
     return this.getService(id);
   }
 
+  // Permanently removes a service (distinct from the Disable toggle, which just sets active=0).
+  // bill_items keeps its own service_name/price copy, so past sales/reports stay intact even
+  // though bill_items.service_id will point at a row that no longer exists.
   deleteService(id) {
-    this.run('UPDATE services SET active = 0 WHERE id = ?', [id]);
+    const service = this.get('SELECT * FROM services WHERE id = ?', [id]);
+    this.run('DELETE FROM service_price_presets WHERE service_id = ?', [id]);
+    this.run('DELETE FROM services WHERE id = ?', [id]);
     this.save();
+    this.logAction('service_deleted', {
+      service_id: id,
+      name: service?.name || null
+    });
   }
 
   // Price presets for dynamic-popup services (variable-length list per service)
@@ -539,6 +548,20 @@ class Database {
     `, [name, commissionRate, active, role, photoPath, id]);
     this.save();
     return this.getStaffMember(id);
+  }
+
+  // Permanently removes a staff member (distinct from the Disable toggle, which just sets
+  // active=0 and keeps them in daily reports). bill_items keeps its own staff_name copy, so
+  // past sales stay attributed correctly. staff_time_logs rows for this staff_id are left in
+  // place but will no longer surface in reports once the staff row is gone (no name to resolve).
+  deleteStaff(id) {
+    const staff = this.get('SELECT * FROM staff WHERE id = ?', [id]);
+    this.run('DELETE FROM staff WHERE id = ?', [id]);
+    this.save();
+    this.logAction('staff_deleted', {
+      staff_id: id,
+      name: staff?.name || null
+    });
   }
 
   // Staff time logs

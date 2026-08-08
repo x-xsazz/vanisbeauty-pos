@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('api', {
     get: (id) => ipcRenderer.invoke('staff:get', id),
     create: (data) => ipcRenderer.invoke('staff:create', data),
     update: (id, data) => ipcRenderer.invoke('staff:update', id, data),
+    delete: (id) => ipcRenderer.invoke('staff:delete', id),
     selectPhoto: () => ipcRenderer.invoke('staff:selectPhoto'),
     clockStatus: (staffId, date) => ipcRenderer.invoke('staff:clockStatus', staffId, date),
     clockIn: (staffId) => ipcRenderer.invoke('staff:clockIn', staffId),

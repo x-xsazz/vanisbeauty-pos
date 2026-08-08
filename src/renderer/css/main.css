@@ -1916,6 +1916,17 @@ input, textarea {
   border-bottom: var(--border-subtle);
 }
 
+.admin-filter-bar {
+  display: flex;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.admin-filter-bar .form-input {
+  width: auto;
+  min-width: 180px;
+}
+
 .admin-card-title {
   font-family: var(--font-mono);
   font-size: 13px;

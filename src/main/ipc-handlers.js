@@ -187,6 +187,15 @@ function registerIpcHandlers(ipcMain, db, mainWindow, dialog) {
     }
   });
 
+  ipcMain.handle('staff:delete', (event, id) => {
+    try {
+      db.deleteStaff(id);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('staff:clockStatus', (event, staffId, date) => {
     try {
       return { success: true, data: db.getStaffClockStatus(staffId, date) };

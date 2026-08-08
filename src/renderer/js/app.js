@@ -70,6 +70,9 @@
   let currencySymbol = '$';
   const formatCurrency = (amount) => `${currencySymbol}${parseFloat(amount).toFixed(2)}`;
   let reportsSelectedDate = getLocalDateString();
+  // True while the reports view should track "today" live (default). Set false the moment
+  // the admin explicitly navigates to a different date, so we don't clobber their choice.
+  let reportsFollowingToday = true;
 
   const customerSearchState = {
     query: '',
@@ -82,6 +85,9 @@
   // Main items grid pagination (fixed 4x4 = 16 tiles per page)
   const SERVICES_PAGE_SIZE = 16;
   let currentServicesPage = 0;
+
+  // Admin > Services filter state
+  let adminServicesFilter = { category: 'all', status: 'all' };
 
   // ============================================
   // INITIALIZATION
@@ -1852,13 +1858,35 @@
 
   async function renderAdminServices() {
     const result = await window.api.services.getAll(false);
-    const services = result.success ? result.data : [];
+    const allServices = result.success ? result.data : [];
+    const categories = store.getState().categories;
+
+    const services = allServices.filter(s => {
+      if (adminServicesFilter.category !== 'all' && s.category !== adminServicesFilter.category) return false;
+      if (adminServicesFilter.status === 'active' && Number(s.active) !== 1) return false;
+      if (adminServicesFilter.status === 'inactive' && Number(s.active) !== 0) return false;
+      return true;
+    });
+
+    const categoryOptions = ['HOME', ...categories.map(c => c.name)]
+      .filter((value, index, arr) => arr.indexOf(value) === index);
 
     DOM.adminContent.innerHTML = `
       <div class="admin-card">
         <div class="admin-card-header">
           <h3 class="admin-card-title">Services (${services.length})</h3>
           <button class="btn btn-primary" id="add-service-btn">+ Add Service</button>
+        </div>
+        <div class="admin-filter-bar">
+          <select class="form-input" id="filter-service-category">
+            <option value="all" ${adminServicesFilter.category === 'all' ? 'selected' : ''}>All Categories</option>
+            ${categoryOptions.map(name => `<option value="${name}" ${adminServicesFilter.category === name ? 'selected' : ''}>${name}</option>`).join('')}
+          </select>
+          <select class="form-input" id="filter-service-status">
+            <option value="all" ${adminServicesFilter.status === 'all' ? 'selected' : ''}>All Statuses</option>
+            <option value="active" ${adminServicesFilter.status === 'active' ? 'selected' : ''}>Active</option>
+            <option value="inactive" ${adminServicesFilter.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+          </select>
         </div>
         <table class="admin-table">
           <thead>
@@ -1874,7 +1902,7 @@
           </thead>
           <tbody>
             ${services.length === 0 ? `
-              <tr><td colspan="7" class="text-center text-muted">No services found</td></tr>
+              <tr><td colspan="7" class="text-center text-muted">No services match the current filters</td></tr>
             ` : services.map(s => {
               const isHome = Number(s.show_on_home) === 1;
               const isDynamic = Number(s.is_dynamic_popup) === 1;
@@ -1897,6 +1925,7 @@
                 <td class="admin-table-actions">
                   <button class="btn btn-outline" data-edit-service="${s.id}">Edit</button>
                   <button class="btn ${s.active ? 'btn-danger' : 'btn-success'}" data-toggle-service="${s.id}" data-active="${s.active}">${s.active ? 'Disable' : 'Enable'}</button>
+                  <button class="btn btn-danger" data-delete-service="${s.id}">Delete</button>
                 </td>
               </tr>
             `;
@@ -1908,6 +1937,40 @@
 
     document.getElementById('add-service-btn')?.addEventListener('click', () => {
       openModal('addService');
+    });
+
+    document.getElementById('filter-service-category')?.addEventListener('change', (e) => {
+      adminServicesFilter.category = e.target.value;
+      renderAdminServices();
+    });
+
+    document.getElementById('filter-service-status')?.addEventListener('change', (e) => {
+      adminServicesFilter.status = e.target.value;
+      renderAdminServices();
+    });
+
+    document.querySelectorAll('[data-delete-service]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = parseInt(btn.dataset.deleteService);
+        const service = services.find(s => s.id === id);
+        if (!service) return;
+
+        openModal('confirm', {
+          title: 'Delete Service',
+          message: `Permanently delete "${service.name}"? Past bills keep their sale record, but this removes the service and its price presets everywhere else. This cannot be undone.`,
+          onConfirm: async () => {
+            const result = await window.api.services.delete(id);
+            if (result.success) {
+              closeModal();
+              showToast('Service deleted', 'success');
+              await refreshServices();
+              renderAdminServices();
+            } else {
+              showToast(result.error || 'Failed to delete service', 'error');
+            }
+          }
+        });
+      });
     });
 
     document.querySelectorAll('[data-edit-service]').forEach(btn => {
@@ -2159,6 +2222,7 @@
                 <td class="admin-table-actions">
                   <button class="btn btn-outline" data-edit-staff="${s.id}">Edit</button>
                   <button class="btn ${s.active ? 'btn-danger' : 'btn-success'}" data-toggle-staff="${s.id}" data-active="${s.active}">${s.active ? 'Disable' : 'Enable'}</button>
+                  <button class="btn btn-danger" data-delete-staff="${s.id}">Delete</button>
                 </td>
               </tr>
             `).join('')}
@@ -2191,9 +2255,40 @@
         showToast(`Staff ${isActive ? 'disabled' : 'enabled'}`, 'success');
       });
     });
+
+    document.querySelectorAll('[data-delete-staff]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = parseInt(btn.dataset.deleteStaff);
+        const staffMember = staff.find(s => s.id === id);
+        if (!staffMember) return;
+
+        openModal('confirm', {
+          title: 'Delete Staff',
+          message: `Permanently delete "${staffMember.name}"? Past bills keep their sale record, but this removes them from future reports and clock-in history. This cannot be undone — use Disable instead if you just want to stop them from being selectable.`,
+          onConfirm: async () => {
+            const result = await window.api.staff.delete(id);
+            if (result.success) {
+              closeModal();
+              showToast('Staff deleted', 'success');
+              await refreshStaff();
+              renderAdminStaff();
+            } else {
+              showToast(result.error || 'Failed to delete staff', 'error');
+            }
+          }
+        });
+      });
+    });
   }
 
   async function renderAdminReports() {
+    // If we're supposed to be tracking "today" and a day has rolled over since the last time
+    // this rendered (e.g. the kiosk sat idle on another admin section overnight), catch up now
+    // instead of silently showing yesterday's report.
+    if (reportsFollowingToday && reportsSelectedDate !== getLocalDateString()) {
+      reportsSelectedDate = getLocalDateString();
+    }
+
     const date = reportsSelectedDate;
     const isToday = date === getLocalDateString();
     const safeInvoke = async (fn, fallback) => {
@@ -2435,6 +2530,7 @@
 
     document.getElementById('reports-today')?.addEventListener('click', () => {
       reportsSelectedDate = getLocalDateString();
+      reportsFollowingToday = true;
       renderAdminReports();
     });
 
@@ -2448,12 +2544,14 @@
         } else {
           reportsSelectedDate = getLocalDateString();
         }
+        reportsFollowingToday = reportsSelectedDate === getLocalDateString();
         renderAdminReports();
       });
     });
     document.getElementById('reports-date-input')?.addEventListener('change', (e) => {
       if (e.target.value) {
         reportsSelectedDate = e.target.value;
+        reportsFollowingToday = reportsSelectedDate === getLocalDateString();
         renderAdminReports();
       }
     });
@@ -2732,6 +2830,13 @@
     }
 
     const updateTimer = () => {
+      // If the kiosk is left sitting on Reports across midnight, catch the rollover here and
+      // do a full refresh so the whole page (not just this ticker) moves on to the new day.
+      if (reportsFollowingToday && reportsSelectedDate !== getLocalDateString()) {
+        renderAdminReports();
+        return;
+      }
+
       const now = new Date();
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
