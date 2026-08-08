@@ -174,6 +174,9 @@
             message: 'Are you sure you want to clear the current bill?',
             onConfirm: () => {
               store.clearBill();
+              DOM.customerLookupInput.value = '';
+              closeCustomerDropdown();
+              renderCustomerInfo();
               closeModal();
               showToast('Bill cleared', 'info');
             }
@@ -635,6 +638,11 @@
     const customer = currentBill.customer;
 
     if (customer) {
+      // Hide the lookup field + button to save space; elements below (customer-info,
+      // checkout card, payment buttons) shift up to fill the gap since panel-right is a flex column.
+      DOM.customerLookupContainer?.classList.add('hidden');
+      DOM.customerLookupBtn?.classList.add('hidden');
+
       // Display selected customer
       DOM.customerInfo.innerHTML = `
         <div class="customer-card">
@@ -660,7 +668,9 @@
         renderCustomerInfo();
       });
     } else {
-      // No customer selected - show nothing (input field is always visible)
+      // No customer selected - restore the lookup field + button to their normal state
+      DOM.customerLookupContainer?.classList.remove('hidden');
+      DOM.customerLookupBtn?.classList.remove('hidden');
       DOM.customerInfo.innerHTML = '';
     }
   }
