@@ -1262,6 +1262,14 @@ input, textarea {
   overflow: hidden;
 }
 
+/* The payment modal packs in a numpad + lines list + method-switch row on
+   top of the usual content - more width and height so the keypad can be
+   properly touch-sized without everything scrolling past the fold. */
+.modal-payment {
+  max-width: 640px;
+  max-height: 94vh;
+}
+
 @keyframes modalSlideIn {
   from {
     opacity: 0;
@@ -1384,8 +1392,11 @@ input, textarea {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 14px;
-  padding: 4px;
+  font-size: 16px;
+  padding: var(--space-sm);
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  touch-action: manipulation;
 }
 
 .payment-line-remove:hover {
@@ -1696,6 +1707,8 @@ input, textarea {
   color: var(--text-primary);
   cursor: pointer;
   transition: all var(--transition-fast);
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .numpad-key:hover {
@@ -1706,12 +1719,22 @@ input, textarea {
   transform: scale(0.95);
 }
 
-/* Used where the numpad shares a modal with a lines list, method-switch
-   buttons, and footer actions (the payment modal) - more compact rows so
-   everything fits without scrolling past the fold. */
-.numpad-grid-compact .numpad-key {
-  padding: var(--space-md);
-  font-size: 18px;
+/* Payment modal's numpad: sized up to match the wider .modal-payment it
+   lives in, with a real touch-sized Clear key in place of a decimal point. */
+.numpad-grid-large {
+  gap: var(--space-md);
+}
+
+.numpad-grid-large .numpad-key {
+  padding: var(--space-xl);
+  font-size: 26px;
+}
+
+.numpad-key-clear {
+  font-size: 15px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--accent-danger);
 }
 
 /* Customer search results */

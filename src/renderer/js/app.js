@@ -781,6 +781,11 @@
   function openModal(modalType, data = {}) {
     store.openModal(modalType, data);
 
+    // The payment modal carries a numpad + lines list + method-switch row on
+    // top of the usual modal content, so it gets a larger size than the
+    // shared default - toggled here so every other modal type stays as-is.
+    DOM.modal.classList.toggle('modal-payment', modalType === 'payment');
+
     const modalContent = getModalContent(modalType, data);
     DOM.modalTitle.textContent = modalContent.title;
     DOM.modalBody.innerHTML = modalContent.body;
@@ -1016,7 +1021,7 @@
               <label class="form-label" id="payment-amount-label">Amount for ${methodLabels[data.method]}</label>
               <input type="text" inputmode="none" pattern="[0-9]*\.?[0-9]*" class="form-input" id="payment-amount-input" value="${total}" readonly>
             </div>
-            <div class="numpad-grid numpad-grid-compact" id="payment-amount-numpad">
+            <div class="numpad-grid numpad-grid-large" id="payment-amount-numpad">
               <button class="numpad-key" type="button" data-key="1">1</button>
               <button class="numpad-key" type="button" data-key="2">2</button>
               <button class="numpad-key" type="button" data-key="3">3</button>
@@ -1026,7 +1031,7 @@
               <button class="numpad-key" type="button" data-key="7">7</button>
               <button class="numpad-key" type="button" data-key="8">8</button>
               <button class="numpad-key" type="button" data-key="9">9</button>
-              <button class="numpad-key" type="button" data-key=".">.</button>
+              <button class="numpad-key numpad-key-clear" type="button" data-key="clear">Clear</button>
               <button class="numpad-key" type="button" data-key="0">0</button>
               <button class="numpad-key" type="button" data-key="back">&#9003;</button>
             </div>
@@ -1119,15 +1124,31 @@
 
             amountInputEl.addEventListener('input', updateButtonStates);
 
+            // Wipes the field back to empty - shared by clicking the field
+            // itself and the numpad's Clear key, so both behave identically.
+            function clearAmount() {
+              if (isLocked) return;
+              amountInputEl.value = '';
+              updateButtonStates();
+            }
+
             // Single mutation path shared by the custom numpad and physical/
             // extended-keyboard digit keys, so both stay in sync and neither
             // can drift from the other.
             function applyNumpadKey(key) {
               if (isLocked) return;
+              if (key === 'clear') {
+                clearAmount();
+                return;
+              }
               if (key === 'back') {
                 amountInputEl.value = amountInputEl.value.slice(0, -1);
               } else if (key === '.') {
                 if (!amountInputEl.value.includes('.')) amountInputEl.value += '.';
+              } else if (amountInputEl.value === '0') {
+                // A lone leading zero gets replaced, not built on top of -
+                // tapping 5 after an untouched "0" should give "5", not "05".
+                amountInputEl.value = key;
               } else {
                 amountInputEl.value += key;
               }
@@ -1136,11 +1157,7 @@
 
             // Clicking the amount field clears the pre-filled number instead
             // of making the cashier backspace through it first.
-            amountInputEl.addEventListener('click', () => {
-              if (isLocked) return;
-              amountInputEl.value = '';
-              updateButtonStates();
-            });
+            amountInputEl.addEventListener('click', clearAmount);
 
             // Enter (physical/extended keyboard) registers the typed amount:
             // completes the payment if it matches the remaining balance,
@@ -1212,6 +1229,12 @@
                 showToast('Amount must match the remaining balance', 'error');
                 return;
               }
+
+              // Disabled immediately (not just after the tentative push) so
+              // a fast double-tap can't fire a second bills.create() while
+              // the first is still in flight.
+              completeBtn.disabled = true;
+              splitBtn.disabled = true;
               paymentLines.push({ method: activeMethod, amount: inputCents / 100 });
 
               const billData = {
@@ -1240,7 +1263,11 @@
                 goHome();
                 showToast(`Payment completed - Bill #${result.data.id}`, 'success');
               } else {
+                // Undo the tentative final line so a retry starts from a
+                // clean, correct remaining balance instead of double-counting.
+                paymentLines.pop();
                 showToast(result.error || 'Payment failed', 'error');
+                renderPaymentState();
               }
             });
 
