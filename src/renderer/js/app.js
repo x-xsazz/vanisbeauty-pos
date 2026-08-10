@@ -1014,9 +1014,9 @@
             <div id="payment-lines-list"></div>
             <div class="form-group" id="payment-amount-group">
               <label class="form-label" id="payment-amount-label">Amount for ${methodLabels[data.method]}</label>
-              <input type="number" class="form-input" id="payment-amount-input" min="0.01" step="0.01" value="${total}" inputmode="none">
+              <input type="text" inputmode="none" pattern="[0-9]*\.?[0-9]*" class="form-input" id="payment-amount-input" value="${total}" readonly>
             </div>
-            <div class="numpad-grid" id="payment-amount-numpad">
+            <div class="numpad-grid numpad-grid-compact" id="payment-amount-numpad">
               <button class="numpad-key" type="button" data-key="1">1</button>
               <button class="numpad-key" type="button" data-key="2">2</button>
               <button class="numpad-key" type="button" data-key="3">3</button>
@@ -1029,7 +1029,6 @@
               <button class="numpad-key" type="button" data-key=".">.</button>
               <button class="numpad-key" type="button" data-key="0">0</button>
               <button class="numpad-key" type="button" data-key="back">&#9003;</button>
-              <button class="numpad-key numpad-key-wide" type="button" data-key="enter">&#10003; Enter</button>
             </div>
             <div id="payment-method-switch" class="payment-method-switch-row"></div>
             <div class="modal-footer">
@@ -1047,6 +1046,12 @@
             const splitBtn = document.getElementById('split-payment-btn');
             const completeBtn = document.getElementById('confirm-payment');
             const cancelBtn = document.getElementById('cancel-payment');
+
+            // The field itself is permanently `readonly` (the reliable way to
+            // stop Windows' on-screen keyboard from popping up on a touch
+            // tap) - this flag is the actual "can the amount be edited right
+            // now" state, separate from that HTML attribute.
+            let isLocked = false;
 
             const linesTotalCents = () => paymentLines.reduce((sum, l) => sum + Math.round(l.amount * 100), 0);
             const remainingCents = () => totalCents - linesTotalCents();
@@ -1092,8 +1097,9 @@
                 ? `Remaining — ${methodLabels[activeMethod]}`
                 : `Amount for ${methodLabels[activeMethod]}`;
               amountInputEl.value = (remaining / 100).toFixed(2);
-              amountInputEl.readOnly = isLastMethod;
-              amountNumpadEl.classList.toggle('hidden', isLastMethod);
+              isLocked = isLastMethod;
+              amountInputEl.classList.toggle('locked-amount', isLocked);
+              amountNumpadEl.classList.toggle('hidden', isLocked);
 
               const otherMethods = unused.filter(m => m !== activeMethod);
               methodSwitchEl.innerHTML = otherMethods.map(m => `
@@ -1113,17 +1119,35 @@
 
             amountInputEl.addEventListener('input', updateButtonStates);
 
+            // Single mutation path shared by the custom numpad and physical/
+            // extended-keyboard digit keys, so both stay in sync and neither
+            // can drift from the other.
+            function applyNumpadKey(key) {
+              if (isLocked) return;
+              if (key === 'back') {
+                amountInputEl.value = amountInputEl.value.slice(0, -1);
+              } else if (key === '.') {
+                if (!amountInputEl.value.includes('.')) amountInputEl.value += '.';
+              } else {
+                amountInputEl.value += key;
+              }
+              amountInputEl.dispatchEvent(new Event('input'));
+            }
+
             // Clicking the amount field clears the pre-filled number instead
             // of making the cashier backspace through it first.
             amountInputEl.addEventListener('click', () => {
-              if (amountInputEl.readOnly) return;
+              if (isLocked) return;
               amountInputEl.value = '';
               updateButtonStates();
             });
 
             // Enter (physical/extended keyboard) registers the typed amount:
             // completes the payment if it matches the remaining balance,
-            // splits it otherwise, same as tapping the matching button.
+            // splits it otherwise - same as tapping the matching button. The
+            // Split/Complete Payment buttons below the numpad already cover
+            // this for pure touch use, so the numpad itself doesn't need its
+            // own Enter key.
             function registerTypedAmount() {
               if (!completeBtn.disabled) {
                 completeBtn.click();
@@ -1134,36 +1158,34 @@
               }
             }
 
+            // The field is permanently readonly (see isLocked comment above),
+            // which blocks the OS on-screen keyboard from popping up on tap
+            // but also blocks native typing - so a real/extended keyboard's
+            // digit keys are re-implemented here through the same
+            // applyNumpadKey() path the on-screen numpad uses.
             amountInputEl.addEventListener('keydown', (e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 registerTypedAmount();
+              } else if (e.key >= '0' && e.key <= '9') {
+                e.preventDefault();
+                applyNumpadKey(e.key);
+              } else if (e.key === '.') {
+                e.preventDefault();
+                applyNumpadKey('.');
+              } else if (e.key === 'Backspace') {
+                e.preventDefault();
+                applyNumpadKey('back');
               }
             });
 
-            // Custom numpad: the amount field uses inputmode="none" so the
-            // OS on-screen keyboard never pops up on the touch till - this
-            // numpad is the only way to type into it on a tap, while a
-            // physical/extended keyboard still works normally alongside it.
+            // Custom numpad: the only way to type into the amount field on a
+            // tap, since the field itself is readonly to keep the OS
+            // on-screen keyboard from popping up over the till.
             amountNumpadEl.addEventListener('click', (e) => {
-              if (amountInputEl.readOnly) return;
               const btn = e.target.closest('.numpad-key');
               if (!btn) return;
-              const key = btn.dataset.key;
-
-              if (key === 'enter') {
-                registerTypedAmount();
-                return;
-              }
-
-              if (key === 'back') {
-                amountInputEl.value = amountInputEl.value.slice(0, -1);
-              } else if (key === '.') {
-                if (!amountInputEl.value.includes('.')) amountInputEl.value += '.';
-              } else {
-                amountInputEl.value += key;
-              }
-              amountInputEl.dispatchEvent(new Event('input'));
+              applyNumpadKey(btn.dataset.key);
             });
 
             splitBtn.addEventListener('click', () => {

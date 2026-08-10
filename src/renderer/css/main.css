@@ -1361,7 +1361,7 @@ input, textarea {
   color: var(--text-dim);
 }
 
-.form-input:read-only {
+.form-input.locked-amount {
   background: var(--bg-secondary);
   color: var(--text-muted);
 }
@@ -1706,15 +1706,12 @@ input, textarea {
   transform: scale(0.95);
 }
 
-.numpad-key-wide {
-  grid-column: 1 / -1;
-  background: var(--gradient-primary);
-  color: var(--bg-primary);
-  border-color: transparent;
-}
-
-.numpad-key-wide:hover {
-  box-shadow: var(--shadow-glow);
+/* Used where the numpad shares a modal with a lines list, method-switch
+   buttons, and footer actions (the payment modal) - more compact rows so
+   everything fits without scrolling past the fold. */
+.numpad-grid-compact .numpad-key {
+  padding: var(--space-md);
+  font-size: 18px;
 }
 
 /* Customer search results */
