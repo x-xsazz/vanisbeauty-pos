@@ -166,6 +166,19 @@ class Database {
     `);
 
     this.db.run(`
+      -- One row per payment method used on a bill. Always >=1 row per bill,
+      -- even for a plain single-method payment (source of truth for all
+      -- payment-method reporting; bills.payment_method is a derived label).
+      CREATE TABLE IF NOT EXISTS bill_payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bill_id INTEGER NOT NULL,
+        payment_method TEXT NOT NULL,
+        amount REAL NOT NULL,
+        FOREIGN KEY (bill_id) REFERENCES bills(id)
+      );
+    `);
+
+    this.db.run(`
       -- Staff time logs
       CREATE TABLE IF NOT EXISTS staff_time_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -209,6 +222,7 @@ class Database {
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_bills_created ON bills(created_at);`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_bills_customer ON bills(customer_id);`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_bill_items_bill ON bill_items(bill_id);`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_bill_payments_bill ON bill_payments(bill_id);`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_staff_time_logs_staff ON staff_time_logs(staff_id);`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_staff_time_logs_clock_in ON staff_time_logs(clock_in);`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_reservations_start_time ON reservations(start_time);`);
@@ -219,6 +233,8 @@ class Database {
     this.ensureColumn('staff', 'photo_path', 'TEXT');
 
     this.run("UPDATE categories SET display_order = 7 WHERE name = 'Other' AND display_order = 99");
+
+    this.backfillBillPayments();
   }
 
   seedDefaultData() {
@@ -291,6 +307,29 @@ class Database {
     const exists = columns.some(col => col.name === columnName);
     if (!exists) {
       this.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+    }
+  }
+
+  // One-time (idempotent) backfill: any bill created before bill_payments
+  // existed has no matching row. Give it one synthetic row so every report
+  // query can read exclusively from bill_payments without branching.
+  backfillBillPayments() {
+    const orphanBills = this.all(`
+      SELECT b.id, b.payment_method, b.total
+      FROM bills b
+      LEFT JOIN bill_payments bp ON bp.bill_id = b.id
+      WHERE bp.id IS NULL
+    `);
+
+    orphanBills.forEach(bill => {
+      this.run(
+        'INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)',
+        [bill.id, bill.payment_method, bill.total]
+      );
+    });
+
+    if (orphanBills.length > 0) {
+      this.save();
     }
   }
 
