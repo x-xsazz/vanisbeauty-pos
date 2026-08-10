@@ -1039,7 +1039,7 @@
               const inputCents = Math.round((parseFloat(amountInputEl.value) || 0) * 100);
               const unused = unusedMethods();
 
-              completeBtn.disabled = inputCents !== remaining || remaining <= 0;
+              completeBtn.disabled = inputCents !== remaining;
               splitBtn.classList.toggle('hidden', unused.length < 2);
               splitBtn.disabled = !(unused.length >= 2 && inputCents > 0 && inputCents < remaining);
             }
@@ -1110,13 +1110,15 @@
             completeBtn.addEventListener('click', async () => {
               const inputCents = Math.round((parseFloat(amountInputEl.value) || 0) * 100);
               const remaining = remainingCents();
-              if (remaining > 0) {
-                if (inputCents !== remaining) {
-                  showToast('Amount must match the remaining balance', 'error');
-                  return;
-                }
-                paymentLines.push({ method: activeMethod, amount: remaining / 100 });
+              // The currently-displayed entry (including a $0 entry for a
+              // fully-discounted bill on the very first render) is always
+              // the last line to commit — push it regardless of whether
+              // remaining was already 0 before this click.
+              if (inputCents !== remaining) {
+                showToast('Amount must match the remaining balance', 'error');
+                return;
               }
+              paymentLines.push({ method: activeMethod, amount: inputCents / 100 });
 
               const billData = {
                 customer_id: currentBillPayment.customer?.id || null,
