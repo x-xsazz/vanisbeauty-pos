@@ -694,6 +694,11 @@ class Database {
 
   // Bill methods
   createBill(data) {
+    const payments = (data.payments && data.payments.length > 0)
+      ? data.payments
+      : [{ method: data.payment_method, amount: data.total }];
+    const paymentMethodLabel = payments.length === 1 ? payments[0].method : 'split';
+
     const billResult = this.run(`
       INSERT INTO bills (customer_id, subtotal, discount_amount, discount_type, total, payment_method, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -703,11 +708,18 @@ class Database {
       data.discount_amount || 0,
       data.discount_type,
       data.total,
-      data.payment_method,
+      paymentMethodLabel,
       data.notes || null
     ]);
 
     const billId = billResult.lastInsertRowid;
+
+    for (const payment of payments) {
+      this.run(`
+        INSERT INTO bill_payments (bill_id, payment_method, amount)
+        VALUES (?, ?, ?)
+      `, [billId, payment.method, payment.amount]);
+    }
 
     for (const item of data.items) {
       this.run(`
