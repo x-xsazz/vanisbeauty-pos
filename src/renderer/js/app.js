@@ -991,33 +991,140 @@
           }
         };
 
-      case 'payment':
+      case 'payment': {
         const currentBillPayment = store.getState().currentBill;
         const methodLabels = { cash: 'Cash', card: 'Card', payid: 'Pay ID', credit: 'Credit' };
+        const allMethods = ['cash', 'card', 'payid', 'credit'];
+        const total = currentBillPayment.total;
+        const totalCents = Math.round(total * 100);
+
+        // Local split-payment state for this modal instance.
+        const paymentLines = []; // { method, amount } - amount in dollars
+        let activeMethod = data.method;
 
         return {
           title: `Payment - ${methodLabels[data.method]}`,
           body: `
             <div class="text-center mb-md">
-              <div class="stat-value">${formatCurrency(currentBillPayment.total)}</div>
-              <div class="text-muted">Total Amount</div>
+              <div class="stat-label">Total Amount</div>
+              <div class="stat-value">${formatCurrency(total)}</div>
             </div>
+            <div id="payment-lines-list"></div>
+            <div class="form-group" id="payment-amount-group">
+              <label class="form-label" id="payment-amount-label">Amount for ${methodLabels[data.method]}</label>
+              <input type="number" class="form-input" id="payment-amount-input" min="0.01" step="0.01" value="${total}">
+            </div>
+            <div id="payment-method-switch" class="payment-method-switch-row"></div>
             <div class="modal-footer">
               <button class="btn btn-outline" id="cancel-payment">Cancel</button>
+              <button class="btn btn-primary" id="split-payment-btn">Split</button>
               <button class="btn btn-success" id="confirm-payment">Complete Payment</button>
             </div>
           `,
           onMount: () => {
-            document.getElementById('cancel-payment').addEventListener('click', closeModal);
+            const linesListEl = document.getElementById('payment-lines-list');
+            const amountLabelEl = document.getElementById('payment-amount-label');
+            const amountInputEl = document.getElementById('payment-amount-input');
+            const methodSwitchEl = document.getElementById('payment-method-switch');
+            const splitBtn = document.getElementById('split-payment-btn');
+            const completeBtn = document.getElementById('confirm-payment');
+            const cancelBtn = document.getElementById('cancel-payment');
 
-            document.getElementById('confirm-payment').addEventListener('click', async () => {
+            const linesTotalCents = () => paymentLines.reduce((sum, l) => sum + Math.round(l.amount * 100), 0);
+            const remainingCents = () => totalCents - linesTotalCents();
+            const unusedMethods = () => allMethods.filter(m => !paymentLines.some(l => l.method === m));
+
+            function updateButtonStates() {
+              const remaining = remainingCents();
+              const inputCents = Math.round((parseFloat(amountInputEl.value) || 0) * 100);
+              const unused = unusedMethods();
+
+              completeBtn.disabled = inputCents !== remaining || remaining <= 0;
+              splitBtn.classList.toggle('hidden', unused.length < 2);
+              splitBtn.disabled = !(unused.length >= 2 && inputCents > 0 && inputCents < remaining);
+            }
+
+            function renderPaymentState() {
+              // Lines already confirmed via Split.
+              linesListEl.innerHTML = paymentLines.length === 0 ? '' : paymentLines.map((line, idx) => `
+                <div class="payment-line-row">
+                  <span>${methodLabels[line.method]}</span>
+                  <span>${formatCurrency(line.amount)}</span>
+                  <button type="button" class="payment-line-remove" data-index="${idx}" title="Remove">&#x2715;</button>
+                </div>
+              `).join('');
+
+              linesListEl.querySelectorAll('.payment-line-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                  const idx = parseInt(btn.dataset.index, 10);
+                  activeMethod = paymentLines[idx].method;
+                  paymentLines.splice(idx, 1);
+                  renderPaymentState();
+                });
+              });
+
+              const unused = unusedMethods();
+              if (!unused.includes(activeMethod)) {
+                activeMethod = unused[0];
+              }
+              const remaining = remainingCents();
+              const isLastMethod = unused.length === 1;
+
+              amountLabelEl.textContent = isLastMethod
+                ? `Remaining — ${methodLabels[activeMethod]}`
+                : `Amount for ${methodLabels[activeMethod]}`;
+              amountInputEl.value = (remaining / 100).toFixed(2);
+              amountInputEl.readOnly = isLastMethod;
+
+              const otherMethods = unused.filter(m => m !== activeMethod);
+              methodSwitchEl.innerHTML = otherMethods.map(m => `
+                <button type="button" class="btn btn-outline btn-sm payment-method-switch-btn" data-method="${m}">${methodLabels[m]}</button>
+              `).join('');
+              methodSwitchEl.classList.toggle('hidden', otherMethods.length === 0);
+
+              methodSwitchEl.querySelectorAll('.payment-method-switch-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                  activeMethod = btn.dataset.method;
+                  renderPaymentState();
+                });
+              });
+
+              updateButtonStates();
+            }
+
+            amountInputEl.addEventListener('input', updateButtonStates);
+
+            splitBtn.addEventListener('click', () => {
+              const inputCents = Math.round((parseFloat(amountInputEl.value) || 0) * 100);
+              const remaining = remainingCents();
+              if (inputCents <= 0 || inputCents >= remaining) {
+                showToast('Enter an amount less than the remaining balance to split', 'error');
+                return;
+              }
+              paymentLines.push({ method: activeMethod, amount: inputCents / 100 });
+              renderPaymentState();
+            });
+
+            cancelBtn.addEventListener('click', closeModal);
+
+            completeBtn.addEventListener('click', async () => {
+              const inputCents = Math.round((parseFloat(amountInputEl.value) || 0) * 100);
+              const remaining = remainingCents();
+              if (remaining > 0) {
+                if (inputCents !== remaining) {
+                  showToast('Amount must match the remaining balance', 'error');
+                  return;
+                }
+                paymentLines.push({ method: activeMethod, amount: remaining / 100 });
+              }
+
               const billData = {
                 customer_id: currentBillPayment.customer?.id || null,
                 subtotal: currentBillPayment.subtotal,
                 discount_amount: currentBillPayment.discountAmount,
                 discount_type: currentBillPayment.discountType,
                 total: currentBillPayment.total,
-                payment_method: data.method,
+                payments: paymentLines,
                 items: currentBillPayment.items.map(item => ({
                   service_id: item.service_id,
                   service_name: item.service_name,
@@ -1040,8 +1147,11 @@
                 showToast(result.error || 'Payment failed', 'error');
               }
             });
+
+            renderPaymentState();
           }
         };
+      }
 
       case 'adminPin':
         return {
