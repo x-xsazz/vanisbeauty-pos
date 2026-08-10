@@ -1706,6 +1706,17 @@ input, textarea {
   transform: scale(0.95);
 }
 
+.numpad-key-wide {
+  grid-column: 1 / -1;
+  background: var(--gradient-primary);
+  color: var(--bg-primary);
+  border-color: transparent;
+}
+
+.numpad-key-wide:hover {
+  box-shadow: var(--shadow-glow);
+}
+
 /* Customer search results */
 .customer-search-results {
   margin-top: var(--space-md);

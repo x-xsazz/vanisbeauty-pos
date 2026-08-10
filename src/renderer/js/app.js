@@ -1014,7 +1014,22 @@
             <div id="payment-lines-list"></div>
             <div class="form-group" id="payment-amount-group">
               <label class="form-label" id="payment-amount-label">Amount for ${methodLabels[data.method]}</label>
-              <input type="number" class="form-input" id="payment-amount-input" min="0.01" step="0.01" value="${total}">
+              <input type="number" class="form-input" id="payment-amount-input" min="0.01" step="0.01" value="${total}" inputmode="none">
+            </div>
+            <div class="numpad-grid" id="payment-amount-numpad">
+              <button class="numpad-key" type="button" data-key="1">1</button>
+              <button class="numpad-key" type="button" data-key="2">2</button>
+              <button class="numpad-key" type="button" data-key="3">3</button>
+              <button class="numpad-key" type="button" data-key="4">4</button>
+              <button class="numpad-key" type="button" data-key="5">5</button>
+              <button class="numpad-key" type="button" data-key="6">6</button>
+              <button class="numpad-key" type="button" data-key="7">7</button>
+              <button class="numpad-key" type="button" data-key="8">8</button>
+              <button class="numpad-key" type="button" data-key="9">9</button>
+              <button class="numpad-key" type="button" data-key=".">.</button>
+              <button class="numpad-key" type="button" data-key="0">0</button>
+              <button class="numpad-key" type="button" data-key="back">&#9003;</button>
+              <button class="numpad-key numpad-key-wide" type="button" data-key="enter">&#10003; Enter</button>
             </div>
             <div id="payment-method-switch" class="payment-method-switch-row"></div>
             <div class="modal-footer">
@@ -1027,6 +1042,7 @@
             const linesListEl = document.getElementById('payment-lines-list');
             const amountLabelEl = document.getElementById('payment-amount-label');
             const amountInputEl = document.getElementById('payment-amount-input');
+            const amountNumpadEl = document.getElementById('payment-amount-numpad');
             const methodSwitchEl = document.getElementById('payment-method-switch');
             const splitBtn = document.getElementById('split-payment-btn');
             const completeBtn = document.getElementById('confirm-payment');
@@ -1077,6 +1093,7 @@
                 : `Amount for ${methodLabels[activeMethod]}`;
               amountInputEl.value = (remaining / 100).toFixed(2);
               amountInputEl.readOnly = isLastMethod;
+              amountNumpadEl.classList.toggle('hidden', isLastMethod);
 
               const otherMethods = unused.filter(m => m !== activeMethod);
               methodSwitchEl.innerHTML = otherMethods.map(m => `
@@ -1095,6 +1112,59 @@
             }
 
             amountInputEl.addEventListener('input', updateButtonStates);
+
+            // Clicking the amount field clears the pre-filled number instead
+            // of making the cashier backspace through it first.
+            amountInputEl.addEventListener('click', () => {
+              if (amountInputEl.readOnly) return;
+              amountInputEl.value = '';
+              updateButtonStates();
+            });
+
+            // Enter (physical/extended keyboard) registers the typed amount:
+            // completes the payment if it matches the remaining balance,
+            // splits it otherwise, same as tapping the matching button.
+            function registerTypedAmount() {
+              if (!completeBtn.disabled) {
+                completeBtn.click();
+              } else if (!splitBtn.classList.contains('hidden') && !splitBtn.disabled) {
+                splitBtn.click();
+              } else {
+                showToast('Enter a valid amount', 'error');
+              }
+            }
+
+            amountInputEl.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                registerTypedAmount();
+              }
+            });
+
+            // Custom numpad: the amount field uses inputmode="none" so the
+            // OS on-screen keyboard never pops up on the touch till - this
+            // numpad is the only way to type into it on a tap, while a
+            // physical/extended keyboard still works normally alongside it.
+            amountNumpadEl.addEventListener('click', (e) => {
+              if (amountInputEl.readOnly) return;
+              const btn = e.target.closest('.numpad-key');
+              if (!btn) return;
+              const key = btn.dataset.key;
+
+              if (key === 'enter') {
+                registerTypedAmount();
+                return;
+              }
+
+              if (key === 'back') {
+                amountInputEl.value = amountInputEl.value.slice(0, -1);
+              } else if (key === '.') {
+                if (!amountInputEl.value.includes('.')) amountInputEl.value += '.';
+              } else {
+                amountInputEl.value += key;
+              }
+              amountInputEl.dispatchEvent(new Event('input'));
+            });
 
             splitBtn.addEventListener('click', () => {
               const inputCents = Math.round((parseFloat(amountInputEl.value) || 0) * 100);
