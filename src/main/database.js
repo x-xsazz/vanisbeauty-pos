@@ -796,10 +796,11 @@ class Database {
     `, [date]);
 
     const byPaymentMethod = this.all(`
-      SELECT payment_method, COUNT(*) as count, SUM(total) as total
-      FROM bills
-      WHERE date(created_at) = date(?)
-      GROUP BY payment_method
+      SELECT bp.payment_method, COUNT(*) as count, SUM(bp.amount) as total
+      FROM bill_payments bp
+      JOIN bills b ON bp.bill_id = b.id
+      WHERE date(b.created_at) = date(?)
+      GROUP BY bp.payment_method
     `, [date]);
 
     const topServices = this.all(`
