@@ -845,15 +845,21 @@ class Database {
       GROUP BY bi.staff_id
     `, [date]);
 
-    const paymentsRows = this.all(`
-      SELECT bi.staff_id, b.payment_method,
-             SUM(bi.price * bi.quantity) as total,
-             SUM(bi.quantity) as jobs_count
+    // Per-bill, per-staff item revenue (for proportional payment-method allocation).
+    const itemRevenueRows = this.all(`
+      SELECT bi.bill_id, bi.staff_id, SUM(bi.price * bi.quantity) as staff_bill_total
       FROM bill_items bi
       JOIN bills b ON bi.bill_id = b.id
       WHERE date(b.created_at) = date(?) AND bi.staff_id IS NOT NULL
-      GROUP BY bi.staff_id, b.payment_method
-      ORDER BY b.payment_method
+      GROUP BY bi.bill_id, bi.staff_id
+    `, [date]);
+
+    // Every payment line for bills created on this date.
+    const paymentRows = this.all(`
+      SELECT bp.bill_id, bp.payment_method, bp.amount
+      FROM bill_payments bp
+      JOIN bills b ON bp.bill_id = b.id
+      WHERE date(b.created_at) = date(?)
     `, [date]);
 
     const timeRows = this.all(`
@@ -874,22 +880,50 @@ class Database {
     `, [useNowForOpenLogs ? 1 : 0, date]);
 
     const salesMap = new Map(salesRows.map(row => [row.staff_id, row]));
-    const paymentsMap = new Map();
-    paymentsRows.forEach(row => {
-      if (!paymentsMap.has(row.staff_id)) {
-        paymentsMap.set(row.staff_id, []);
+
+    // bill_id -> total staff-tagged item revenue in that bill (allocation denominator).
+    const billItemTotals = new Map();
+    itemRevenueRows.forEach(row => {
+      billItemTotals.set(row.bill_id, (billItemTotals.get(row.bill_id) || 0) + row.staff_bill_total);
+    });
+
+    // bill_id -> [{ payment_method, amount }]
+    const billPaymentLines = new Map();
+    paymentRows.forEach(row => {
+      if (!billPaymentLines.has(row.bill_id)) {
+        billPaymentLines.set(row.bill_id, []);
       }
-      paymentsMap.get(row.staff_id).push({
-        method: row.payment_method,
-        total: row.total || 0,
-        jobs_count: row.jobs_count || 0
+      billPaymentLines.get(row.bill_id).push(row);
+    });
+
+    // staff_id -> Map(method -> total)
+    const paymentsMap = new Map();
+    itemRevenueRows.forEach(row => {
+      const billTotal = billItemTotals.get(row.bill_id) || 0;
+      if (billTotal <= 0) return;
+      const share = row.staff_bill_total / billTotal;
+      const lines = billPaymentLines.get(row.bill_id) || [];
+
+      if (!paymentsMap.has(row.staff_id)) {
+        paymentsMap.set(row.staff_id, new Map());
+      }
+      const staffMethods = paymentsMap.get(row.staff_id);
+
+      lines.forEach(line => {
+        const allocated = line.amount * share;
+        staffMethods.set(line.payment_method, (staffMethods.get(line.payment_method) || 0) + allocated);
       });
     });
+
     const timeMap = new Map(timeRows.map(row => [row.staff_id, row]));
 
     return staff.map(member => {
       const sales = salesMap.get(member.id) || {};
       const time = timeMap.get(member.id) || {};
+      const staffMethods = paymentsMap.get(member.id);
+      const payments = staffMethods
+        ? Array.from(staffMethods.entries()).map(([method, total]) => ({ method, total }))
+        : [];
       return {
         staff_id: member.id,
         staff_name: member.name,
@@ -897,7 +931,7 @@ class Database {
         role: member.role,
         jobs_count: sales.jobs_count || 0,
         total_sales: sales.total_sales || 0,
-        payments: paymentsMap.get(member.id) || [],
+        payments,
         first_clock_in: time.first_clock_in || null,
         last_clock_out: time.last_clock_out || null,
         total_minutes: time.total_minutes || 0
