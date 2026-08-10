@@ -517,9 +517,11 @@
       ...activeStaff.filter(s => !clockedInStaffIds.has(s.id))
     ];
 
-    // Always render 5 staff picture boxes
+    // Render every active staff member (the row scrolls horizontally past the visible width),
+    // padded with empty placeholders up to a minimum of 5 so small teams still fill the row.
     const staffBoxes = [];
-    for (let i = 0; i < 5; i++) {
+    const boxCount = Math.max(5, sortedStaff.length);
+    for (let i = 0; i < boxCount; i++) {
       const staffMember = sortedStaff[i];
       if (staffMember) {
         const isClockedIn = clockedInStaffIds.has(staffMember.id);
